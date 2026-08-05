@@ -128,7 +128,31 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
         diagnostics.push(Diagnostic::warning(
             "detect.git_missing",
             "Git was not found on PATH",
-            "Install Git for Windows for git-aware prompt features (Phase 2)",
+            "Install Git for Windows for git-aware prompt features",
+        ));
+    }
+
+    if env.fzf.is_some() {
+        diagnostics.push(Diagnostic::info(
+            "detect.fzf",
+            "fzf found — Ctrl+R fuzzy history enabled when smart.fzf=true",
+        ));
+    } else {
+        diagnostics.push(Diagnostic::info(
+            "detect.fzf_missing",
+            "fzf not found (optional); install for Ctrl+R fuzzy history",
+        ));
+    }
+
+    if env.zoxide.is_some() {
+        diagnostics.push(Diagnostic::info(
+            "detect.zoxide",
+            "zoxide found — will initialize when smart.zoxide=true",
+        ));
+    } else {
+        diagnostics.push(Diagnostic::info(
+            "detect.zoxide_missing",
+            "zoxide not found (optional); install for fast directory jumping (`z`)",
         ));
     }
 
@@ -184,17 +208,32 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
 
     if paths.runtime_module().is_file() {
         match std::fs::read_to_string(paths.runtime_module()) {
-            Ok(module) if module.contains("function prompt") => {
-                diagnostics.push(Diagnostic::info(
-                    "prompt.present",
-                    "runtime module includes Phase 2 prompt",
-                ));
+            Ok(module) => {
+                if module.contains("function prompt") {
+                    diagnostics.push(Diagnostic::info(
+                        "prompt.present",
+                        "runtime module includes prompt",
+                    ));
+                } else {
+                    diagnostics.push(Diagnostic::warning(
+                        "prompt.missing",
+                        "runtime module has no prompt function",
+                        "Run `winzsh reload` or `winzsh install --force`",
+                    ));
+                }
+                if module.contains("AcceptSuggestion") {
+                    diagnostics.push(Diagnostic::info(
+                        "suggest.accept",
+                        "runtime module wires RightArrow → AcceptSuggestion",
+                    ));
+                } else {
+                    diagnostics.push(Diagnostic::warning(
+                        "suggest.missing",
+                        "runtime module missing autosuggest accept handler",
+                        "Run `winzsh reload` to upgrade to Phase 3",
+                    ));
+                }
             }
-            Ok(_) => diagnostics.push(Diagnostic::warning(
-                "prompt.missing",
-                "runtime module has no prompt function",
-                "Run `winzsh reload` or `winzsh install --force`",
-            )),
             Err(e) => diagnostics.push(Diagnostic::warning(
                 "prompt.unreadable",
                 e.to_string(),

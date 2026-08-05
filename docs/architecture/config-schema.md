@@ -47,6 +47,10 @@ budget_ms = 20
 enabled = true
 max_entries = 10000
 
+[smart]
+fzf = true
+zoxide = true
+
 [plugins]
 enabled = ["git", "docker"]
 

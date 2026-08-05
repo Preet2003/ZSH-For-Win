@@ -19,6 +19,10 @@ pub struct DetectionReport {
     pub git: Option<PathBuf>,
     /// Path to Windows Terminal (`wt.exe`) if found.
     pub windows_terminal: Option<PathBuf>,
+    /// Path to `fzf` if found.
+    pub fzf: Option<PathBuf>,
+    /// Path to `zoxide` if found.
+    pub zoxide: Option<PathBuf>,
     /// Resolved PowerShell user profile path.
     pub profile_path: Option<PathBuf>,
     /// Names of additional detected commands on PATH.
@@ -53,6 +57,8 @@ pub fn detect_environment() -> Result<DetectionReport> {
     let windows_powershell = find_windows_powershell();
     let git = find_on_path("git");
     let windows_terminal = find_on_path("wt");
+    let fzf = find_on_path("fzf");
+    let zoxide = find_on_path("zoxide");
     let profile_path = resolve_profile_path(pwsh.as_deref().or(windows_powershell.as_deref()))?;
 
     let mut commands = Vec::new();
@@ -68,12 +74,20 @@ pub fn detect_environment() -> Result<DetectionReport> {
     if windows_terminal.is_some() {
         commands.push("wt".to_string());
     }
+    if fzf.is_some() {
+        commands.push("fzf".to_string());
+    }
+    if zoxide.is_some() {
+        commands.push("zoxide".to_string());
+    }
 
     Ok(DetectionReport {
         pwsh,
         windows_powershell,
         git,
         windows_terminal,
+        fzf,
+        zoxide,
         profile_path: Some(profile_path),
         commands,
     })

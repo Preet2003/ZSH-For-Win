@@ -228,6 +228,8 @@ mod tests {
             windows_powershell: None,
             git: None,
             windows_terminal: None,
+            fzf: None,
+            zoxide: None,
             profile_path: Some(profile.clone()),
             commands: vec![],
         };
@@ -281,6 +283,8 @@ mod tests {
             )),
             git: None,
             windows_terminal: None,
+            fzf: None,
+            zoxide: None,
             profile_path: Some(profile.clone()),
             commands: vec!["powershell".into()],
         };

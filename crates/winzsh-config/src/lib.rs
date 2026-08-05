@@ -31,6 +31,9 @@ pub struct Config {
     /// History preferences.
     #[serde(default)]
     pub history: HistoryConfig,
+    /// Smart-shell integrations (fzf / zoxide).
+    #[serde(default)]
+    pub smart: SmartConfig,
     /// Enabled plugins (Phase 5 fills behavior; stored from Phase 1).
     #[serde(default)]
     pub plugins: PluginsConfig,
@@ -55,6 +58,7 @@ impl Default for Config {
             prompt: PromptConfig::default(),
             aliases: BTreeMap::new(),
             history: HistoryConfig::default(),
+            smart: SmartConfig::default(),
             plugins: PluginsConfig::default(),
             update: UpdateConfig::default(),
             telemetry: TelemetryConfig::default(),
@@ -138,6 +142,26 @@ impl Default for HistoryConfig {
         Self {
             enabled: true,
             max_entries: default_history_max(),
+        }
+    }
+}
+
+/// Fuzzy / jump-tool integrations.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SmartConfig {
+    /// Enable Ctrl+R fzf history when `fzf` is installed.
+    #[serde(default = "default_true")]
+    pub fzf: bool,
+    /// Initialize zoxide when installed.
+    #[serde(default = "default_true")]
+    pub zoxide: bool,
+}
+
+impl Default for SmartConfig {
+    fn default() -> Self {
+        Self {
+            fzf: true,
+            zoxide: true,
         }
     }
 }

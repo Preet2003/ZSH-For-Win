@@ -178,7 +178,7 @@ fn cmd_status(paths: &WinzshPaths, json: bool) -> Result<ExitCode, Error> {
         let payload = serde_json::json!({
             "name": "winzsh",
             "version": VERSION,
-            "phase": "phase-2",
+            "phase": "phase-3",
             "installed": installed,
             "home": paths.root,
             "theme": theme_id,

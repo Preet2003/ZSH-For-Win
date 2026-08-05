@@ -11,8 +11,9 @@ enhances PowerShell 7 with zero manual profile editing:
 - First-class plugin ecosystem
 - One command install (`winget install winzsh` / `winzsh install`)
 
-> Status: **Phase 2 UX**. Prompt, themes, aliases, and history work. Autosuggestions /
-> plugins come later. See [docs/architecture/](docs/architecture/).
+> Status: **Phase 3 smart shell**. Prompt, themes, aliases, history, autosuggest accept,
+> syntax colors, optional fzf/zoxide. Completions/plugins come later.
+> See [docs/architecture/](docs/architecture/).
 
 ## Quick start
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 3 smart shell: PSReadLine autosuggest accept (RightArrow/Ctrl+F), syntax colors
+- Optional fzf Ctrl+R history and zoxide init when tools are installed
 - Phase 2 UX: themed prompt (path + git), aliases, history
 - Built-in themes: minimal, classic, powerline, modern, catppuccin, tokyo-night
 - CLI: `theme`, `alias`, `history`, `reload`

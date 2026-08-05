@@ -1329,6 +1329,7 @@ dependencies = [
 name = "winzsh-suggest"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "winzsh-core",
  "winzsh-error",
 ]

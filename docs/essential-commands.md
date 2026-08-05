@@ -29,6 +29,23 @@ cargo run -p winzsh -- doctor
 
 Then **restart PowerShell** (or open a new tab) so the profile hook loads.
 
+### Autosuggestions (Phase 3)
+
+| Key | Action |
+|-----|--------|
+| RightArrow (at end of line) | Accept full ghost suggestion |
+| Ctrl+F | Accept full suggestion |
+| Ctrl+RightArrow | Accept next word of suggestion |
+| Ctrl+R | Fuzzy history search (**requires `fzf`**) |
+
+Optional tools:
+
+```powershell
+winget install junegunn.fzf
+winget install ajeetdsouza.zoxide
+cargo run -p winzsh -- reload
+```
+
 If PowerShell 7 is missing but Windows PowerShell is present, install prompts:
 
 ```text
@@ -184,8 +201,8 @@ Architecture / design: [`docs/architecture/`](architecture/).
 | Command | Phase / notes |
 |---------|----------------|
 | `update` | Self-update / channel |
+| completion packs | Phase 4 (docker/k8s/npm/…) |
 | `plugin` | Plugin install / enable (Phase 5) |
-| autosuggest / syntax | Phase 3 |
 | `sync` | Settings sync |
 | `ai` | AI helpers (Phase 6) |
 

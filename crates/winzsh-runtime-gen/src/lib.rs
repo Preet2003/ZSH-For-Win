@@ -12,6 +12,7 @@ use winzsh_error::Result;
 use winzsh_fs::{atomic_write, ensure_dir, read_string};
 use winzsh_history::{self as history};
 use winzsh_prompt::{self as prompt};
+use winzsh_suggest::{self as suggest, SuggestPolicy};
 use winzsh_theme::{self as theme};
 
 const PSD1_TEMPLATE: &str = include_str!("../../../runtime/powershell/WinZSH.psd1.template");
@@ -96,11 +97,18 @@ fn render_psm1(paths: &WinzshPaths, cfg: &Config) -> Result<String> {
     let aliases = alias::merge(alias::builtin_aliases(), [], user_aliases);
 
     let history_enabled = cfg.features.history && cfg.history.enabled;
+    let policy = SuggestPolicy {
+        autosuggestions: cfg.features.autosuggestions,
+        syntax: cfg.features.syntax,
+        fzf: cfg.smart.fzf,
+        zoxide: cfg.smart.zoxide,
+        theme_id: cfg.theme.clone(),
+    };
 
     let mut body = String::new();
     body.push_str(&format!(
-        "# winzsh-generated theme={} git={} history={}\n",
-        cfg.theme, cfg.prompt.git, history_enabled
+        "# winzsh-generated theme={} git={} history={} suggest={} syntax={}\n",
+        cfg.theme, cfg.prompt.git, history_enabled, policy.autosuggestions, policy.syntax
     ));
     body.push_str("Set-StrictMode -Version Latest\n\n");
     body.push_str(
@@ -110,9 +118,9 @@ function Get-WinZshInfo {
     param()
     [pscustomobject]@{
         Name    = 'WinZSH'
-        Phase   = 'phase-2'
+        Phase   = 'phase-3'
         Theme   = $script:WinZshThemeId
-        Message = 'WinZSH runtime loaded (Phase 2 UX).'
+        Message = 'WinZSH runtime loaded (Phase 3 smart shell).'
     }
 }
 "#,
@@ -124,8 +132,10 @@ function Get-WinZshInfo {
     body.push_str(&history::render_powershell(paths, history_enabled));
     body.push_str(&prompt::render_powershell(&resolved.theme, &plan));
     body.push_str(&alias::render_powershell(&aliases));
-    body.push_str("\nExport-ModuleMember -Function Get-WinZshInfo,Get-WinZshPathSegment,Get-WinZshGitSegment,prompt\n");
-    // Alias functions are module-scoped; export them explicitly.
+    body.push_str(&suggest::render_powershell(&policy));
+    body.push_str(
+        "\nExport-ModuleMember -Function Get-WinZshInfo,Get-WinZshPathSegment,Get-WinZshGitSegment,prompt,Initialize-WinZshSmartShell\n",
+    );
     for name in aliases.aliases.keys() {
         body.push_str(&format!("Export-ModuleMember -Function {name}\n"));
     }
@@ -145,8 +155,8 @@ mod tests {
     use winzsh_fs::ensure_layout;
 
     #[test]
-    fn generate_includes_prompt_and_aliases() {
-        let root = std::env::temp_dir().join(format!("winzsh-rgen2-{}", std::process::id()));
+    fn generate_includes_smart_shell() {
+        let root = std::env::temp_dir().join(format!("winzsh-rgen3-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let paths = WinzshPaths::from_root(root.clone());
         ensure_layout(&paths).expect("layout");
@@ -155,8 +165,9 @@ mod tests {
         assert!(report.wrote);
         let module = read_string(&paths.runtime_module()).expect("read");
         assert!(module.contains("function prompt"));
-        assert!(module.contains("function gs"));
-        assert!(module.contains("phase-2"));
+        assert!(module.contains("AcceptSuggestion"));
+        assert!(module.contains("phase-3"));
+        assert!(module.contains("Initialize-WinZshSmartShell"));
         let again = generate(&paths, &cfg).expect("gen2");
         assert!(!again.wrote);
         let _ = std::fs::remove_dir_all(&root);
