@@ -1,0 +1,15 @@
+# WinZSH PowerShell module manifest template (materialized by winzsh-runtime-gen).
+# Feature content lands in Phase 1+.
+@{
+    RootModule        = 'WinZSH.psm1'
+    ModuleVersion     = '0.1.0'
+    GUID              = '00000000-0000-0000-0000-000000000001'
+    Author            = 'WinZSH'
+    Description       = 'WinZSH generated runtime module'
+    PowerShellVersion = '7.0'
+    PrivateData       = @{
+        WinZSH = @{
+            MinCliVersion = '0.1.0'
+        }
+    }
+}

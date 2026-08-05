@@ -1,0 +1,19 @@
+[package]
+name = "winzsh-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH config load, validate, and migrate"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-error = { workspace = true }
+winzsh-fs = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,27 @@
+[package]
+name = "winzsh-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH CLI command tree and UX"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-error = { workspace = true }
+winzsh-log = { workspace = true }
+winzsh-config = { workspace = true }
+winzsh-installer = { workspace = true }
+winzsh-doctor = { workspace = true }
+winzsh-update = { workspace = true }
+winzsh-plugin = { workspace = true }
+winzsh-theme = { workspace = true }
+winzsh-alias = { workspace = true }
+winzsh-runtime-gen = { workspace = true }
+clap = { workspace = true }
+miette = { workspace = true }
+
+[lints]
+workspace = true

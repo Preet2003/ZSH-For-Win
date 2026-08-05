@@ -1,0 +1,21 @@
+[package]
+name = "winzsh-installer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH installer"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-error = { workspace = true }
+winzsh-fs = { workspace = true }
+winzsh-detect = { workspace = true }
+winzsh-powershell = { workspace = true }
+winzsh-runtime-gen = { workspace = true }
+winzsh-config = { workspace = true }
+
+[lints]
+workspace = true

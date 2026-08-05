@@ -1,0 +1,16 @@
+[package]
+name = "winzsh-fs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH atomic IO, backups, and safe path helpers"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-error = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "winzsh-test-support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH test helpers"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-config = { workspace = true }
+winzsh-plugin = { workspace = true }
+
+[lints]
+workspace = true

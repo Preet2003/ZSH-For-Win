@@ -1,0 +1,16 @@
+[package]
+name = "winzsh-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH sync module (future stub)"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-history = { workspace = true }
+
+[lints]
+workspace = true

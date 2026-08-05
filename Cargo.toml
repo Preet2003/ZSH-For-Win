@@ -1,0 +1,86 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/winzsh",
+    "crates/winzsh-ai",
+    "crates/winzsh-alias",
+    "crates/winzsh-cli",
+    "crates/winzsh-completion",
+    "crates/winzsh-config",
+    "crates/winzsh-core",
+    "crates/winzsh-detect",
+    "crates/winzsh-doctor",
+    "crates/winzsh-error",
+    "crates/winzsh-fs",
+    "crates/winzsh-history",
+    "crates/winzsh-installer",
+    "crates/winzsh-log",
+    "crates/winzsh-plugin",
+    "crates/winzsh-powershell",
+    "crates/winzsh-prompt",
+    "crates/winzsh-registry",
+    "crates/winzsh-runtime-gen",
+    "crates/winzsh-shell-host",
+    "crates/winzsh-suggest",
+    "crates/winzsh-sync",
+    "crates/winzsh-test-support",
+    "crates/winzsh-theme",
+    "crates/winzsh-update",
+]
+default-members = ["crates/winzsh"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/winzsh/winzsh"
+rust-version = "1.85"
+authors = ["WinZSH Contributors"]
+description = "Oh My Zsh–style developer experience layer for Windows shells"
+
+[workspace.dependencies]
+# Internal crates
+winzsh-ai = { path = "crates/winzsh-ai" }
+winzsh-alias = { path = "crates/winzsh-alias" }
+winzsh-cli = { path = "crates/winzsh-cli" }
+winzsh-completion = { path = "crates/winzsh-completion" }
+winzsh-config = { path = "crates/winzsh-config" }
+winzsh-core = { path = "crates/winzsh-core" }
+winzsh-detect = { path = "crates/winzsh-detect" }
+winzsh-doctor = { path = "crates/winzsh-doctor" }
+winzsh-error = { path = "crates/winzsh-error" }
+winzsh-fs = { path = "crates/winzsh-fs" }
+winzsh-history = { path = "crates/winzsh-history" }
+winzsh-installer = { path = "crates/winzsh-installer" }
+winzsh-log = { path = "crates/winzsh-log" }
+winzsh-plugin = { path = "crates/winzsh-plugin" }
+winzsh-powershell = { path = "crates/winzsh-powershell" }
+winzsh-prompt = { path = "crates/winzsh-prompt" }
+winzsh-registry = { path = "crates/winzsh-registry" }
+winzsh-runtime-gen = { path = "crates/winzsh-runtime-gen" }
+winzsh-shell-host = { path = "crates/winzsh-shell-host" }
+winzsh-suggest = { path = "crates/winzsh-suggest" }
+winzsh-sync = { path = "crates/winzsh-sync" }
+winzsh-test-support = { path = "crates/winzsh-test-support" }
+winzsh-theme = { path = "crates/winzsh-theme" }
+winzsh-update = { path = "crates/winzsh-update" }
+
+# External staples (versions pinned at workspace level; wired when features land)
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "2"
+miette = { version = "7", features = ["fancy"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+clap = { version = "4", features = ["derive"] }
+dirs = "6"
+time = { version = "0.3", features = ["formatting", "parsing", "serde"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+all = { level = "warn", priority = -1 }

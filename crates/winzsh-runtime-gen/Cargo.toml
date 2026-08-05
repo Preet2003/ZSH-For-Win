@@ -1,0 +1,24 @@
+[package]
+name = "winzsh-runtime-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH runtime artifact generator"
+
+[dependencies]
+winzsh-core = { workspace = true }
+winzsh-error = { workspace = true }
+winzsh-fs = { workspace = true }
+winzsh-config = { workspace = true }
+winzsh-prompt = { workspace = true }
+winzsh-completion = { workspace = true }
+winzsh-suggest = { workspace = true }
+winzsh-theme = { workspace = true }
+winzsh-alias = { workspace = true }
+winzsh-plugin = { workspace = true }
+
+[lints]
+workspace = true

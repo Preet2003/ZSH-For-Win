@@ -1,0 +1,13 @@
+/target
+**/*.rs.bk
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+/Cargo.lock.bak
+
+# Local doctor / release scratch
+*.log
+dist/

@@ -1,0 +1,8 @@
+[alias]
+ci = "clippy --workspace --all-targets -- -D warnings"
+
+[term]
+quiet = false
+
+[build]
+incremental = true

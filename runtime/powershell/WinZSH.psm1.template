@@ -1,0 +1,9 @@
+# WinZSH runtime module template.
+# Generated artifacts are derived — do not hand-edit installed copies under ~/.winzsh/cache.
+Set-StrictMode -Version Latest
+
+# >>> winzsh-runtime-scaffold >>>
+Write-Verbose 'WinZSH runtime scaffold loaded (no Phase 1 features yet).'
+# <<< winzsh-runtime-scaffold <<<
+
+Export-ModuleMember -Function @()

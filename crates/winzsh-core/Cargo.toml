@@ -1,0 +1,16 @@
+[package]
+name = "winzsh-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "WinZSH shared domain types, paths, and versioning"
+
+[dependencies]
+winzsh-error = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true
