@@ -289,28 +289,39 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
                         "Run `winzsh reload` or `winzsh install --force`",
                     ));
                 }
+                let want_suggest = loaded_cfg
+                    .as_ref()
+                    .is_none_or(|c| c.features.autosuggestions);
                 if module.contains("AcceptSuggestion") {
                     diagnostics.push(Diagnostic::info(
                         "suggest.accept",
                         "runtime module wires RightArrow → AcceptSuggestion",
                     ));
-                } else {
+                } else if want_suggest {
                     diagnostics.push(Diagnostic::warning(
                         "suggest.missing",
                         "runtime module missing autosuggest accept handler",
-                        "Run `winzsh reload` to upgrade to Phase 3",
+                        "Run `winzsh reload` to upgrade",
+                    ));
+                } else {
+                    diagnostics.push(Diagnostic::info(
+                        "suggest.disabled",
+                        "autosuggestions disabled in config (AcceptSuggestion omitted)",
                     ));
                 }
+                let want_completions = loaded_cfg
+                    .as_ref()
+                    .is_none_or(|c| c.completions.enabled);
                 if module.contains("Initialize-WinZshCompletions") {
                     diagnostics.push(Diagnostic::info(
                         "completions.runtime",
-                        "runtime module includes Phase 4 completion init",
+                        "runtime module includes completion init",
                     ));
-                } else {
+                } else if want_completions {
                     diagnostics.push(Diagnostic::warning(
                         "completions.runtime_missing",
                         "runtime module missing completion init",
-                        "Run `winzsh reload` to upgrade to Phase 4",
+                        "Run `winzsh reload` to upgrade",
                     ));
                 }
                 if module.contains("plugins (phase 5)") || module.contains("phase-5") {

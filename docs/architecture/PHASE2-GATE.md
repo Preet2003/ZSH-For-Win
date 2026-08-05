@@ -5,6 +5,7 @@
 - [x] Theme engine with built-ins (`minimal`, `classic`, `powerline`, `modern`, `catppuccin`, `tokyo-night`)
 - [x] Prompt with path + git segments (in-process PowerShell)
 - [x] Alias merge (builtins + user) and runtime codegen
+- [x] *(Phase 5)* Plugin aliases also merge into the same pipeline (user wins)
 - [x] History spool + compacted JSONL store + CLI query
 - [x] CLI: `theme`, `alias`, `history`, `reload`
 

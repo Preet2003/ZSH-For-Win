@@ -213,7 +213,9 @@ pub fn render_powershell(
     policy: &CompletionPolicy,
 ) -> String {
     if !policy.enabled {
-        return "\n# --- completions (phase 4): disabled ---\n".into();
+        // Always define Initialize-WinZshCompletions — runtime-gen exports and invokes it.
+        return "\n# --- completions (phase 4): disabled ---\nfunction Initialize-WinZshCompletions { }\n"
+            .into();
     }
 
     let packs = builtin_packs();
@@ -407,5 +409,16 @@ mod tests {
         assert!(ps.contains("Initialize-WinZshCompletions"));
         assert!(ps.contains("CompletionResult]::new"));
         assert!(!ps.contains("New-WinZshCompletionResult"));
+    }
+
+    #[test]
+    fn disabled_still_defines_init() {
+        let paths = WinzshPaths::from_root(std::env::temp_dir().join("wz-comp-off"));
+        let policy = CompletionPolicy {
+            enabled: false,
+            only: Vec::new(),
+        };
+        let ps = render_powershell(&paths, &DetectionReport::default(), &policy);
+        assert!(ps.contains("Initialize-WinZshCompletions"));
     }
 }

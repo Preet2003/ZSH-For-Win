@@ -106,7 +106,7 @@ enum ThemeCommands {
 
 #[derive(Debug, Subcommand)]
 enum AliasCommands {
-    /// List effective aliases (builtins + user).
+    /// List effective aliases (builtins + plugins + user).
     List,
     /// Set a user alias and regenerate runtime.
     Set {
@@ -547,8 +547,13 @@ fn cmd_alias(paths: &WinzshPaths, sub: AliasCommands, json: bool) -> Result<Exit
         AliasCommands::List => {
             require_installed(paths)?;
             let cfg = config::load(paths)?;
+            let detected = detect_environment().unwrap_or_default();
+            let active_plugins =
+                plugin::resolve_active(paths, &cfg.plugins.enabled, &detected)?;
+            let plugin_aliases =
+                alias::from_plugin_map(&plugin::collect_aliases(&active_plugins))?;
             let user = alias::from_user_map(&cfg.aliases)?;
-            let set = alias::merge(alias::builtin_aliases(), [], user);
+            let set = alias::merge(alias::builtin_aliases(), plugin_aliases, user);
             if json {
                 println!(
                     "{}",

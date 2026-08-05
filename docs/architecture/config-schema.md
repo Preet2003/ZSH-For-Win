@@ -51,6 +51,10 @@ max_entries = 10000
 fzf = true
 zoxide = true
 
+[completions]
+enabled = true
+# only = ["git", "docker"]   # optional allow-list of pack ids
+
 [plugins]
 enabled = ["git", "docker"]
 

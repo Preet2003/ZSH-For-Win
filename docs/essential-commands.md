@@ -74,7 +74,7 @@ Prefix with `cargo run -p winzsh --` while developing, or use `winzsh` once the 
 | `theme list` | List built-in themes |
 | `theme show [id]` | Show active or named theme |
 | `theme set <id>` | Set theme and regenerate runtime |
-| `alias list` | List effective aliases (builtin + user) |
+| `alias list` | List effective aliases (builtin + plugin + user) |
 | `alias set <name> <value…>` | Set a **permanent** user alias |
 | `alias remove <name>` | Remove a user alias |
 

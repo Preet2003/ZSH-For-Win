@@ -277,6 +277,8 @@ function Initialize-WinZshSmartShell {
         if ($env:PATH -notlike ("*" + $fzfDir + "*")) {
             $env:PATH = $fzfDir + ';' + $env:PATH
         }
+        # Capture path for the keyhandler — PSReadLine scriptblocks run outside module scope.
+        $fzfExe = $script:WinZshFzfPath
         Set-PSReadLineKeyHandler -Key Ctrl+r -BriefDescription 'WinZSH fzf history' -ScriptBlock {
             $histPath = (Get-PSReadLineOption).HistorySavePath
             $lines = @()
@@ -287,13 +289,13 @@ function Initialize-WinZshSmartShell {
                 $lines = @(Get-History | ForEach-Object { $_.CommandLine })
             }
             if (-not $lines -or $lines.Count -eq 0) { return }
-            $fzfExe = if ($script:WinZshFzfPath) { $script:WinZshFzfPath } else { 'fzf' }
-            $selection = $lines | & $fzfExe --tac --no-sort --height=40% --reverse
+            $exe = if ($fzfExe) { $fzfExe } else { 'fzf' }
+            $selection = $lines | & $exe --tac --no-sort --height=40% --reverse
             if ($selection) {
                 [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
                 [Microsoft.PowerShell.PSConsoleReadLine]::Insert($selection)
             }
-        }
+        }.GetNewClosure()
     }
 "#,
         );
@@ -360,6 +362,7 @@ mod tests {
         assert!(ps.contains("Initialize-WinZshSmartShell"));
         assert!(ps.contains("Update-WinZshSessionPath"));
         assert!(ps.contains("Resolve-WinZshTool"));
+        assert!(ps.contains("GetNewClosure"));
     }
 
     #[test]

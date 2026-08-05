@@ -7,13 +7,13 @@ enhances PowerShell 7 with zero manual profile editing:
 
 - Beautiful prompt, autosuggestions, syntax highlighting
 - Smart history, aliases, themes
-- Completions for git, docker, kubernetes, npm, cloud CLIs, and more
+- Completions for git, docker, kubectl, npm, cloud CLIs, and more
 - First-class plugin ecosystem
 - One command install (`winget install winzsh` / `winzsh install`)
 
-> Status: **Phase 3 smart shell**. Prompt, themes, aliases, history, autosuggest accept,
-> syntax colors, optional fzf/zoxide. Completions/plugins come later.
-> See [docs/architecture/](docs/architecture/).
+> Status: **Phase 5 plugins**. Phases 1–5 are in: install/doctor, themes/prompt/aliases/history,
+> smart shell (autosuggest/syntax/fzf/zoxide), completion packs, and first-party plugins.
+> See [docs/architecture/](docs/architecture/) and [PHASE5-GATE.md](docs/architecture/PHASE5-GATE.md).
 
 ## Quick start
 
@@ -23,9 +23,11 @@ Requirements: Rust stable (1.85+), PowerShell 7 (recommended) or Windows PowerSh
 cargo build -p winzsh
 cargo run -p winzsh -- install
 cargo run -p winzsh -- theme set modern
+cargo run -p winzsh -- plugin add docker
 # Restart PowerShell / open a new tab, then:
 Get-WinZshInfo
 gs   # git status alias
+dps  # docker ps (docker plugin)
 ```
 
 Day-to-day commands and workflows: **[docs/essential-commands.md](docs/essential-commands.md)** (keep this updated as the CLI grows).

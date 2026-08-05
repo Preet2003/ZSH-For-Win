@@ -126,10 +126,13 @@ function prompt {{
         Write-WinZshHistoryFromPrompt
     }}
     # Teach zoxide about the current directory (zoxide cannot wrap our module-exported prompt).
+    # Use Get-Variable — StrictMode throws on reading an unset $global:WinZshZoxidePath.
     try {{
-        $zoxideExe = $null
-        if ($global:WinZshZoxidePath) {{ $zoxideExe = $global:WinZshZoxidePath }}
-        elseif (Get-Command zoxide -ErrorAction SilentlyContinue) {{ $zoxideExe = (Get-Command zoxide).Source }}
+        $zoxideExe = Get-Variable -Name WinZshZoxidePath -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+        if (-not $zoxideExe) {{
+            $zoxideCmd = Get-Command zoxide -ErrorAction SilentlyContinue
+            if ($zoxideCmd) {{ $zoxideExe = $zoxideCmd.Source }}
+        }}
         if ($zoxideExe) {{
             $cwd = (Get-Location).ProviderPath
             if ($cwd) {{ $null = & $zoxideExe add -- $cwd }}
@@ -154,5 +157,6 @@ mod tests {
         assert!(ps.contains("Get-WinZshGitSegment"));
         assert!(ps.contains("add --"));
         assert!(ps.contains("WinZshZoxidePath"));
+        assert!(ps.contains("Get-Variable"));
     }
 }

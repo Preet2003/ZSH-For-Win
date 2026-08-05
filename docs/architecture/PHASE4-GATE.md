@@ -15,7 +15,7 @@
 cargo run -p winzsh -- reload
 cargo run -p winzsh -- completion list
 # new PowerShell tab:
-Get-WinZshInfo   # Phase = phase-4
+Get-WinZshInfo   # Phase field tracks the latest shipped phase (currently phase-5)
 git <Tab>        # subcommands
 # if docker installed:
 docker <Tab>

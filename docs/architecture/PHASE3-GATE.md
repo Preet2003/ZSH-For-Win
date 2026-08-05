@@ -14,7 +14,7 @@
 ```powershell
 cargo run -p winzsh -- reload
 # new PowerShell tab:
-Get-WinZshInfo   # Phase = phase-3
+Get-WinZshInfo   # Phase field tracks the latest shipped phase (currently phase-5)
 # type part of a previous command — ghost text appears
 # press RightArrow to accept
 ```
