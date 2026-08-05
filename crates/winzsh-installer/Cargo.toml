@@ -16,6 +16,13 @@ winzsh-detect = { workspace = true }
 winzsh-powershell = { workspace = true }
 winzsh-runtime-gen = { workspace = true }
 winzsh-config = { workspace = true }
+winzsh-shell-host = { workspace = true }
+winzsh-doctor = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+winzsh-test-support = { workspace = true }
 
 [lints]
 workspace = true

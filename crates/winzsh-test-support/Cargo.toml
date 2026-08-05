@@ -12,6 +12,8 @@ description = "WinZSH test helpers"
 winzsh-core = { workspace = true }
 winzsh-config = { workspace = true }
 winzsh-plugin = { workspace = true }
+winzsh-fs = { workspace = true }
+uuid = { workspace = true }
 
 [lints]
 workspace = true

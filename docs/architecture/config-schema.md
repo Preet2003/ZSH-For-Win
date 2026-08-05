@@ -40,13 +40,19 @@ history = true
 ai = false
 
 [prompt]
-# segment enablement and budgets — filled in Phase 2
+git = true
+budget_ms = 20
+
+[history]
+enabled = true
+max_entries = 10000
 
 [plugins]
 enabled = ["git", "docker"]
 
 [aliases]
 # user aliases only; plugin aliases come from manifests
+# gs = "git status -sb"
 
 [update]
 channel = "stable"

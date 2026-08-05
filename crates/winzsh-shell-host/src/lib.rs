@@ -27,9 +27,15 @@ pub trait ShellHost {
     /// Directory where the host expects modules/scripts.
     fn module_dir(&self) -> Result<PathBuf>;
 
+    /// Path to the managed profile file.
+    fn profile_path(&self) -> Result<PathBuf>;
+
     /// Install the managed profile hook.
     fn install_hook(&self) -> Result<()>;
 
     /// Remove the managed profile hook.
     fn remove_hook(&self) -> Result<()>;
+
+    /// Whether the managed hook is currently present.
+    fn hook_installed(&self) -> Result<bool>;
 }

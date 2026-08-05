@@ -1,14 +1,31 @@
 # Phase 1 review gate
 
-Architecture scaffold deliverables are complete:
+## Scaffold (complete)
 
 - [x] Normative docs under `docs/architecture/`
 - [x] Rust workspace + crate stubs with dependency edges
 - [x] CI skeleton (`fmt`, `clippy`, `test`, `cargo-deny`, edge checks)
-- [x] Minimal `winzsh status` stub only (no installer/prompt/plugin product logic)
 
-**Do not start Phase 1 feature implementation until this gate is explicitly approved.**
+## Phase 1 foundation (complete)
 
-Phase 1 scope (after approval): CLI surface for install/uninstall/doctor, config IO,
-logging to `~/.winzsh/logs`, installer + PowerShell hook, minimal runtime-gen,
-profile backup, verify path.
+- [x] CLI: `install`, `uninstall`, `doctor`, `config`, `status`
+- [x] Config IO (`config.toml` load/save/validate/migrate)
+- [x] Logging to stderr + `~/.winzsh/logs/winzsh.log`
+- [x] Installer + PowerShell managed profile hook
+- [x] Minimal runtime-gen (`cache/runtime/WinZSH.psm1`)
+- [x] Profile backup under `~/.winzsh/backups/profile/`
+- [x] Doctor diagnostics / verify path
+
+## Try it
+
+```powershell
+cargo run -p winzsh -- install
+cargo run -p winzsh -- doctor
+cargo run -p winzsh -- status
+# open a new PowerShell tab, then:
+Get-WinZshInfo
+```
+
+## Next
+
+Phase 2 (UX): prompt engine, git segment, themes, aliases, history.

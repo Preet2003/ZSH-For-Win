@@ -11,6 +11,8 @@ description = "WinZSH prompt segment contracts"
 [dependencies]
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
+winzsh-theme = { workspace = true }
+serde = { workspace = true }
 
 [lints]
 workspace = true

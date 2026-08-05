@@ -12,6 +12,10 @@ description = "WinZSH history store contracts"
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-fs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
 
 [lints]
 workspace = true

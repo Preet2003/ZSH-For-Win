@@ -11,17 +11,29 @@ enhances PowerShell 7 with zero manual profile editing:
 - First-class plugin ecosystem
 - One command install (`winget install winzsh` / `winzsh install`)
 
-> Status: **architecture scaffold**. Phase 1 feature work (installer, real prompt, etc.)
-> has not started. See [docs/architecture/](docs/architecture/).
+> Status: **Phase 2 UX**. Prompt, themes, aliases, and history work. Autosuggestions /
+> plugins come later. See [docs/architecture/](docs/architecture/).
 
-## Quick start (developers)
+## Quick start
 
-Requirements: Rust stable (1.85+), PowerShell 7 for e2e later.
+Requirements: Rust stable (1.85+), PowerShell 7 (recommended) or Windows PowerShell.
 
 ```powershell
 cargo build -p winzsh
-cargo run -p winzsh -- status
+cargo run -p winzsh -- install
+cargo run -p winzsh -- theme set modern
+# Restart PowerShell / open a new tab, then:
+Get-WinZshInfo
+gs   # git status alias
+```
+
+Day-to-day commands and workflows: **[docs/essential-commands.md](docs/essential-commands.md)** (keep this updated as the CLI grows).
+
+Developer checks:
+
+```powershell
 cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ./scripts/ci/check-crate-deps.ps1
 ```
 

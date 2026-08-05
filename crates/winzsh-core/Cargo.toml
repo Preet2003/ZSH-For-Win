@@ -11,6 +11,10 @@ description = "WinZSH shared domain types, paths, and versioning"
 [dependencies]
 winzsh-error = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+dirs = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
 
 [lints]
 workspace = true

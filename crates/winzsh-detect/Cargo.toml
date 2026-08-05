@@ -11,6 +11,8 @@ description = "WinZSH tool and environment detection"
 [dependencies]
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
+serde = { workspace = true }
+dirs = { workspace = true }
 
 [lints]
 workspace = true

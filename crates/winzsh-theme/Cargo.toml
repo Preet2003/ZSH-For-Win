@@ -12,6 +12,7 @@ description = "WinZSH theme engine contracts"
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-fs = { workspace = true }
+serde = { workspace = true }
 
 [lints]
 workspace = true

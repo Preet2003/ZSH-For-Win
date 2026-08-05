@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Architecture documentation under `docs/architecture/`
-- Rust workspace scaffold with crate boundaries and dependency edges
-- CI skeleton (fmt, clippy, test, cargo-deny, dependency edge checks)
-- Minimal `winzsh status` CLI stub (no Phase 1 product features yet)
+- Phase 2 UX: themed prompt (path + git), aliases, history
+- Built-in themes: minimal, classic, powerline, modern, catppuccin, tokyo-night
+- CLI: `theme`, `alias`, `history`, `reload`
+- History spool (`history/spool.jsonl`) + compacted store
+- Phase 1 foundation: `install|uninstall|doctor|config|status`
+- Config system, logging, PowerShell profile hook, runtime-gen
+- Architecture docs and Rust workspace scaffold

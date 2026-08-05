@@ -11,6 +11,7 @@ description = "WinZSH alias engine"
 [dependencies]
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
+serde = { workspace = true }
 
 [lints]
 workspace = true

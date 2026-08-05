@@ -28,9 +28,11 @@ function Assert-NotDependsOn([string]$crate, [string]$dep) {
 
 Assert-DependsOn "winzsh" "winzsh-cli"
 Assert-DependsOn "winzsh-cli" "winzsh-installer"
+Assert-DependsOn "winzsh-cli" "winzsh-detect"
 Assert-DependsOn "winzsh-cli" "winzsh-runtime-gen"
 Assert-DependsOn "winzsh-installer" "winzsh-powershell"
 Assert-DependsOn "winzsh-installer" "winzsh-runtime-gen"
+Assert-DependsOn "winzsh-installer" "winzsh-doctor"
 Assert-DependsOn "winzsh-powershell" "winzsh-shell-host"
 Assert-DependsOn "winzsh-runtime-gen" "winzsh-prompt"
 Assert-DependsOn "winzsh-runtime-gen" "winzsh-plugin"

@@ -13,15 +13,22 @@ winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-log = { workspace = true }
 winzsh-config = { workspace = true }
+winzsh-detect = { workspace = true }
 winzsh-installer = { workspace = true }
 winzsh-doctor = { workspace = true }
 winzsh-update = { workspace = true }
 winzsh-plugin = { workspace = true }
 winzsh-theme = { workspace = true }
 winzsh-alias = { workspace = true }
+winzsh-history = { workspace = true }
 winzsh-runtime-gen = { workspace = true }
+winzsh-fs = { workspace = true }
 clap = { workspace = true }
 miette = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
 
 [lints]
 workspace = true
