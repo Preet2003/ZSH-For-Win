@@ -29,4 +29,4 @@ cargo run -p winzsh -- reload
 
 ## Next
 
-Phase 4 (Developer tools): docker / kubernetes / npm / ssh / terraform / aws / az completion packs.
+Phase 4 — see [`PHASE4-GATE.md`](PHASE4-GATE.md).

@@ -34,6 +34,9 @@ pub struct Config {
     /// Smart-shell integrations (fzf / zoxide).
     #[serde(default)]
     pub smart: SmartConfig,
+    /// Completion packs (Phase 4).
+    #[serde(default)]
+    pub completions: CompletionsConfig,
     /// Enabled plugins (Phase 5 fills behavior; stored from Phase 1).
     #[serde(default)]
     pub plugins: PluginsConfig,
@@ -59,6 +62,7 @@ impl Default for Config {
             aliases: BTreeMap::new(),
             history: HistoryConfig::default(),
             smart: SmartConfig::default(),
+            completions: CompletionsConfig::default(),
             plugins: PluginsConfig::default(),
             update: UpdateConfig::default(),
             telemetry: TelemetryConfig::default(),
@@ -162,6 +166,26 @@ impl Default for SmartConfig {
         Self {
             fzf: true,
             zoxide: true,
+        }
+    }
+}
+
+/// Completion pack configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CompletionsConfig {
+    /// Master enable for Tab completions.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// If non-empty, only these pack ids are enabled (e.g. `docker`, `kubectl`).
+    #[serde(default)]
+    pub only: Vec<String>,
+}
+
+impl Default for CompletionsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            only: Vec::new(),
         }
     }
 }

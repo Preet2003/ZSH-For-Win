@@ -3,9 +3,11 @@
 #![forbid(unsafe_code)]
 
 use serde::Serialize;
+use winzsh_completion::{self as completion, CompletionPolicy};
 use winzsh_config::{self as config};
 use winzsh_core::WinzshPaths;
 use winzsh_detect::detect_environment;
+use winzsh_plugin::{self as plugin};
 use winzsh_powershell::{PowerShellHost, runtime_module_exists};
 use winzsh_shell_host::ShellHost;
 
@@ -178,7 +180,7 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
         ));
     }
 
-    match config::load(paths) {
+    let loaded_cfg = match config::load(paths) {
         Ok(cfg) => {
             if let Err(e) = config::validate(&cfg) {
                 diagnostics.push(Diagnostic::error(
@@ -186,24 +188,90 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
                     e.to_string(),
                     "Fix ~/.winzsh/config.toml or re-run `winzsh install`",
                 ));
+                None
             } else if let Err(e) = winzsh_theme::validate_id(&cfg.theme) {
                 diagnostics.push(Diagnostic::error(
                     "theme.unknown",
                     e.to_string(),
                     "Run `winzsh theme list` and `winzsh theme set <id>`",
                 ));
+                None
             } else {
                 diagnostics.push(Diagnostic::info(
                     "config.ok",
                     format!("config OK (theme={})", cfg.theme),
                 ));
+                Some(cfg)
             }
         }
-        Err(e) => diagnostics.push(Diagnostic::error(
-            "config.missing",
-            e.to_string(),
-            "Run `winzsh install` to create a default config",
-        )),
+        Err(e) => {
+            diagnostics.push(Diagnostic::error(
+                "config.missing",
+                e.to_string(),
+                "Run `winzsh install` to create a default config",
+            ));
+            None
+        }
+    };
+
+    if let Some(cfg) = &loaded_cfg {
+        let policy = CompletionPolicy {
+            enabled: cfg.completions.enabled,
+            only: cfg.completions.only.clone(),
+        };
+        if !cfg.completions.enabled {
+            diagnostics.push(Diagnostic::info(
+                "completions.disabled",
+                "completions.enabled=false in config",
+            ));
+        } else {
+            let packs = completion::active_pack_ids(&env, &policy);
+            if packs.is_empty() {
+                diagnostics.push(Diagnostic::info(
+                    "completions.none",
+                    "no completion packs matched detected tools (git/docker/kubectl/…)",
+                ));
+            } else {
+                diagnostics.push(Diagnostic::info(
+                    "completions.active",
+                    format!("completion packs: {}", packs.join(", ")),
+                ));
+            }
+        }
+
+        if cfg.plugins.enabled.is_empty() {
+            diagnostics.push(Diagnostic::info(
+                "plugins.none",
+                "no plugins enabled (try `winzsh plugin add docker`)",
+            ));
+        } else {
+            for id in &cfg.plugins.enabled {
+                match plugin::load(paths, id) {
+                    Ok(p) => {
+                        if plugin::commands_ok(&p.manifest, &env) {
+                            diagnostics.push(Diagnostic::info(
+                                "plugins.enabled",
+                                format!("plugin '{id}' v{} active", p.manifest.version),
+                            ));
+                        } else {
+                            diagnostics.push(Diagnostic::warning(
+                                "plugins.commands_missing",
+                                format!(
+                                    "plugin '{id}' enabled but required commands not detected ({})",
+                                    p.manifest.commands.join(", ")
+                                ),
+                                "Install the tool or `winzsh plugin disable` it",
+                            ));
+                        }
+                    }
+                    Err(_) => diagnostics.push(Diagnostic::warning(
+                        "plugins.missing",
+                        format!("plugin '{id}' enabled in config but not installed"),
+                        format!("Run `winzsh plugin add {id}` or remove it from [plugins].enabled"),
+                    )),
+                }
+            }
+        }
     }
 
     if paths.runtime_module().is_file() {
@@ -231,6 +299,30 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
                         "suggest.missing",
                         "runtime module missing autosuggest accept handler",
                         "Run `winzsh reload` to upgrade to Phase 3",
+                    ));
+                }
+                if module.contains("Initialize-WinZshCompletions") {
+                    diagnostics.push(Diagnostic::info(
+                        "completions.runtime",
+                        "runtime module includes Phase 4 completion init",
+                    ));
+                } else {
+                    diagnostics.push(Diagnostic::warning(
+                        "completions.runtime_missing",
+                        "runtime module missing completion init",
+                        "Run `winzsh reload` to upgrade to Phase 4",
+                    ));
+                }
+                if module.contains("plugins (phase 5)") || module.contains("phase-5") {
+                    diagnostics.push(Diagnostic::info(
+                        "plugins.runtime",
+                        "runtime module includes Phase 5 plugin section",
+                    ));
+                } else {
+                    diagnostics.push(Diagnostic::warning(
+                        "plugins.runtime_missing",
+                        "runtime module missing plugin section",
+                        "Run `winzsh reload` to upgrade to Phase 5",
                     ));
                 }
             }

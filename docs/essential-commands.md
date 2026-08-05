@@ -75,12 +75,61 @@ Prefix with `cargo run -p winzsh --` while developing, or use `winzsh` once the 
 | `theme show [id]` | Show active or named theme |
 | `theme set <id>` | Set theme and regenerate runtime |
 | `alias list` | List effective aliases (builtin + user) |
-| `alias set <name> <value…>` | Set a user alias |
+| `alias set <name> <value…>` | Set a **permanent** user alias |
 | `alias remove <name>` | Remove a user alias |
+
+In the shell (this tab only):
+
+```powershell
+salias myalias git status
+myalias
+```
+
+Permanent (survives new tabs):
+
+```powershell
+winzsh alias set myalias "git status"
+```
 | `history list [-n N] [--contains X]` | List recent history |
 | `history compact` | Compact spool into store |
+| `completion list` | List completion packs (active vs available) |
+| `plugin list` | List first-party / installed plugins |
+| `plugin add <id\|path>` | Install + enable a plugin |
+| `plugin remove <id>` | Uninstall plugin files + disable |
+| `plugin enable <id>` | Enable installed plugin |
+| `plugin disable <id>` | Disable (keep files) |
 | `uninstall` | Remove managed profile hook (keep `~/.winzsh`) |
 | `uninstall --purge` | Remove hook **and** delete `~/.winzsh` |
+
+### Plugins (Phase 5)
+
+```powershell
+cargo run -p winzsh -- plugin list
+cargo run -p winzsh -- plugin add docker
+cargo run -p winzsh -- plugin add git
+cargo run -p winzsh -- reload
+# new tab: dps / gst / …
+```
+
+First-party ids: `docker`, `git`, `node`, `rust`. Packs live under `plugins/` in the repo and are embedded into the CLI.
+
+### Tab completions (Phase 4)
+
+Packs register only when the tool is detected. Native generators (`docker`, `kubectl`, `az`) lazy-load on first Tab into `~/.winzsh/cache/completions/`.
+
+```powershell
+cargo run -p winzsh -- completion list
+cargo run -p winzsh -- reload
+# new tab: git <Tab> / docker <Tab> / ssh <Tab>
+```
+
+Config (`~/.winzsh/config.toml`):
+
+```toml
+[completions]
+enabled = true
+# only = ["git", "docker"]   # optional allow-list
+```
 
 ### Copy-paste (dev)
 
@@ -92,6 +141,9 @@ cargo run -p winzsh -- theme set tokyo-night
 cargo run -p winzsh -- alias list
 cargo run -p winzsh -- alias set gs "git status -sb"
 cargo run -p winzsh -- history list -n 20
+cargo run -p winzsh -- completion list
+cargo run -p winzsh -- plugin list
+cargo run -p winzsh -- plugin add docker
 cargo run -p winzsh -- doctor
 cargo run -p winzsh -- status
 ```
@@ -201,10 +253,9 @@ Architecture / design: [`docs/architecture/`](architecture/).
 | Command | Phase / notes |
 |---------|----------------|
 | `update` | Self-update / channel |
-| completion packs | Phase 4 (docker/k8s/npm/…) |
-| `plugin` | Plugin install / enable (Phase 5) |
 | `sync` | Settings sync |
 | `ai` | AI helpers (Phase 6) |
+| plugin registry | Signed community packs (post–Phase 5) |
 
 When a command ships, move it into **Core CLI commands** above and add a short workflow section.
 

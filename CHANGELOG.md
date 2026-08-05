@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 5 plugin manager: `plugin list|add|remove|enable|disable`
+- First-party plugins: docker, git, node, rust (aliases + optional hooks)
+- Plugin materialization into runtime (failure-isolated); config `[plugins].enabled`
+- Phase 4 completion packs: git, docker, kubectl, npm, pnpm, yarn, terraform, ssh, aws, az
+- Lazy native completers cached under `~/.winzsh/cache/completions/`
+- CLI: `completion list`; config `[completions]`
 - Phase 3 smart shell: PSReadLine autosuggest accept (RightArrow/Ctrl+F), syntax colors
 - Optional fzf Ctrl+R history and zoxide init when tools are installed
 - Phase 2 UX: themed prompt (path + git), aliases, history

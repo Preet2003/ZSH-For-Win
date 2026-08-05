@@ -20,6 +20,7 @@ winzsh-update = { workspace = true }
 winzsh-plugin = { workspace = true }
 winzsh-theme = { workspace = true }
 winzsh-alias = { workspace = true }
+winzsh-completion = { workspace = true }
 winzsh-history = { workspace = true }
 winzsh-runtime-gen = { workspace = true }
 winzsh-fs = { workspace = true }

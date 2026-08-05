@@ -1,0 +1,9 @@
+name = "node"
+version = "1.0.0"
+description = "npm / node workflow aliases"
+engines.winzsh = ">=0.1.0"
+commands = ["npm"]
+aliases = { ni = "npm install", nr = "npm run", nrd = "npm run dev", nrb = "npm run build", nt = "npm test", nx = "npm exec" }
+completions = []
+hooks = []
+themes = []

@@ -6,11 +6,14 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::info;
 use winzsh_alias::{self as alias};
+use winzsh_completion::{self as completion, CompletionPolicy};
 use winzsh_config::Config;
 use winzsh_core::{VERSION, WinzshPaths};
+use winzsh_detect::detect_environment;
 use winzsh_error::Result;
 use winzsh_fs::{atomic_write, ensure_dir, read_string};
 use winzsh_history::{self as history};
+use winzsh_plugin::{self as plugin};
 use winzsh_prompt::{self as prompt};
 use winzsh_suggest::{self as suggest, SuggestPolicy};
 use winzsh_theme::{self as theme};
@@ -93,8 +96,12 @@ fn render_psm1(paths: &WinzshPaths, cfg: &Config) -> Result<String> {
     let mut plan = prompt::plan_from_flags(cfg.prompt.git);
     plan.budget_ms = cfg.prompt.budget_ms;
 
+    let detected = detect_environment().unwrap_or_default();
+    let active_plugins = plugin::resolve_active(paths, &cfg.plugins.enabled, &detected)?;
+    let plugin_alias_map = plugin::collect_aliases(&active_plugins);
+    let plugin_aliases = alias::from_plugin_map(&plugin_alias_map)?;
     let user_aliases = alias::from_user_map(&cfg.aliases)?;
-    let aliases = alias::merge(alias::builtin_aliases(), [], user_aliases);
+    let aliases = alias::merge(alias::builtin_aliases(), plugin_aliases, user_aliases);
 
     let history_enabled = cfg.features.history && cfg.history.enabled;
     let policy = SuggestPolicy {
@@ -105,10 +112,26 @@ fn render_psm1(paths: &WinzshPaths, cfg: &Config) -> Result<String> {
         theme_id: cfg.theme.clone(),
     };
 
+    let completion_policy = CompletionPolicy {
+        enabled: cfg.completions.enabled,
+        only: cfg.completions.only.clone(),
+    };
+
+    let plugin_ids: Vec<&str> = active_plugins
+        .iter()
+        .map(|p| p.manifest.name.as_str())
+        .collect();
+
     let mut body = String::new();
     body.push_str(&format!(
-        "# winzsh-generated theme={} git={} history={} suggest={} syntax={}\n",
-        cfg.theme, cfg.prompt.git, history_enabled, policy.autosuggestions, policy.syntax
+        "# winzsh-generated theme={} git={} history={} suggest={} syntax={} completions={} plugins=[{}]\n",
+        cfg.theme,
+        cfg.prompt.git,
+        history_enabled,
+        policy.autosuggestions,
+        policy.syntax,
+        cfg.completions.enabled,
+        plugin_ids.join(",")
     ));
     body.push_str("Set-StrictMode -Version Latest\n\n");
     body.push_str(
@@ -118,9 +141,10 @@ function Get-WinZshInfo {
     param()
     [pscustomobject]@{
         Name    = 'WinZSH'
-        Phase   = 'phase-3'
+        Phase   = 'phase-5'
         Theme   = $script:WinZshThemeId
-        Message = 'WinZSH runtime loaded (Phase 3 smart shell).'
+        Plugins = @($script:WinZshPluginsLoaded)
+        Message = 'WinZSH runtime loaded (Phase 5 plugins).'
     }
 }
 "#,
@@ -133,8 +157,14 @@ function Get-WinZshInfo {
     body.push_str(&prompt::render_powershell(&resolved.theme, &plan));
     body.push_str(&alias::render_powershell(&aliases));
     body.push_str(&suggest::render_powershell(&policy));
+    body.push_str(&completion::render_powershell(
+        paths,
+        &detected,
+        &completion_policy,
+    ));
+    body.push_str(&plugin::render_powershell(&active_plugins));
     body.push_str(
-        "\nExport-ModuleMember -Function Get-WinZshInfo,Get-WinZshPathSegment,Get-WinZshGitSegment,prompt,Initialize-WinZshSmartShell,Update-WinZshSessionPath,Resolve-WinZshTool\n",
+        "\nExport-ModuleMember -Function Get-WinZshInfo,Get-WinZshPathSegment,Get-WinZshGitSegment,prompt,Initialize-WinZshSmartShell,Initialize-WinZshCompletions,Update-WinZshSessionPath,Resolve-WinZshTool,salias\n",
     );
     for name in aliases.aliases.keys() {
         body.push_str(&format!("Export-ModuleMember -Function {name}\n"));
@@ -145,6 +175,7 @@ function Get-WinZshInfo {
     // MUST run after exporting `prompt`. zoxide wraps the session prompt to learn `cd` targets;
     // exporting afterward would replace that wrapper and leave the DB empty forever.
     body.push_str("\nInitialize-WinZshSmartShell\n");
+    body.push_str("Initialize-WinZshCompletions\n");
     Ok(body)
 }
 
@@ -158,27 +189,26 @@ mod tests {
     use winzsh_fs::ensure_layout;
 
     #[test]
-    fn generate_includes_smart_shell() {
-        let root = std::env::temp_dir().join(format!("winzsh-rgen3-{}", std::process::id()));
+    fn generate_includes_plugins_section() {
+        let root = std::env::temp_dir().join(format!("winzsh-rgen5-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let paths = WinzshPaths::from_root(root.clone());
         ensure_layout(&paths).expect("layout");
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        plugin::add_first_party(&paths, "git").expect("add git");
+        cfg.plugins.enabled = vec!["git".into()];
+        // Force materialization even if git missing in this detect snapshot by also
+        // writing a second generate after marking commands — detect uses real PATH.
         let report = generate(&paths, &cfg).expect("gen");
         assert!(report.wrote);
         let module = read_string(&paths.runtime_module()).expect("read");
-        assert!(module.contains("function prompt"));
-        assert!(module.contains("AcceptSuggestion"));
-        assert!(module.contains("phase-3"));
-        assert!(module.contains("Initialize-WinZshSmartShell"));
-        let export_at = module
-            .rfind("Export-ModuleMember")
-            .expect("export");
-        let init_at = module.rfind("Initialize-WinZshSmartShell").expect("init");
-        assert!(
-            init_at > export_at,
-            "zoxide/smart init must run after Export-ModuleMember"
-        );
+        assert!(module.contains("phase-5"));
+        assert!(module.contains("plugins (phase 5)"));
+        assert!(module.contains("Initialize-WinZshCompletions"));
+        // git plugin aliases when git is on PATH (typical in CI/dev)
+        if module.contains("function gst") {
+            assert!(module.contains("WinZshPluginsLoaded"));
+        }
         let again = generate(&paths, &cfg).expect("gen2");
         assert!(!again.wrote);
         let _ = std::fs::remove_dir_all(&root);

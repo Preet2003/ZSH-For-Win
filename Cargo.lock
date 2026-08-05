@@ -1122,6 +1122,7 @@ dependencies = [
  "toml",
  "tracing",
  "winzsh-alias",
+ "winzsh-completion",
  "winzsh-config",
  "winzsh-core",
  "winzsh-detect",
@@ -1141,9 +1142,9 @@ dependencies = [
 name = "winzsh-completion"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "winzsh-core",
  "winzsh-detect",
- "winzsh-error",
 ]
 
 [[package]]
@@ -1184,11 +1185,13 @@ name = "winzsh-doctor"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "winzsh-completion",
  "winzsh-config",
  "winzsh-core",
  "winzsh-detect",
  "winzsh-error",
  "winzsh-fs",
+ "winzsh-plugin",
  "winzsh-powershell",
  "winzsh-shell-host",
  "winzsh-theme",
@@ -1257,7 +1260,11 @@ dependencies = [
 name = "winzsh-plugin"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "toml",
+ "tracing",
  "winzsh-core",
+ "winzsh-detect",
  "winzsh-error",
  "winzsh-fs",
 ]
@@ -1308,6 +1315,7 @@ dependencies = [
  "winzsh-completion",
  "winzsh-config",
  "winzsh-core",
+ "winzsh-detect",
  "winzsh-error",
  "winzsh-fs",
  "winzsh-history",

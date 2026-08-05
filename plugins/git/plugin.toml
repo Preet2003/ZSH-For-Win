@@ -1,0 +1,9 @@
+name = "git"
+version = "1.0.0"
+description = "Extra git aliases beyond WinZSH builtins"
+engines.winzsh = ">=0.1.0"
+commands = ["git"]
+aliases = { gst = "git status -sb", gaa = "git add --all", gpull = "git pull --rebase", gpush = "git push", gdiff = "git diff --stat" }
+completions = []
+hooks = []
+themes = []

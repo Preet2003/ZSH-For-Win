@@ -1,0 +1,9 @@
+name = "rust"
+version = "1.0.0"
+description = "Cargo workflow aliases"
+engines.winzsh = ">=0.1.0"
+commands = ["cargo"]
+aliases = { cb = "cargo build", ct = "cargo test", cr = "cargo run", cc = "cargo check", cclippy = "cargo clippy" }
+completions = []
+hooks = []
+themes = []

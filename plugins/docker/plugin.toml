@@ -1,0 +1,9 @@
+name = "docker"
+version = "1.0.0"
+description = "Docker convenience aliases"
+engines.winzsh = ">=0.1.0"
+commands = ["docker"]
+aliases = { dps = "docker ps", dimg = "docker images", dex = "docker exec -it", dcup = "docker compose up -d", dclogs = "docker compose logs -f" }
+completions = []
+hooks = ["hooks/init.ps1"]
+themes = []

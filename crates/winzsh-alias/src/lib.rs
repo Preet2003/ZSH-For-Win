@@ -95,6 +95,15 @@ fn insert(set: &mut AliasSet, alias: Alias) {
 
 /// Build user aliases from a name→value map.
 pub fn from_user_map(map: &BTreeMap<String, String>) -> Result<Vec<Alias>> {
+    aliases_from_map(map, AliasSource::User)
+}
+
+/// Build plugin aliases from a name→value map (already validated by plugin manifests).
+pub fn from_plugin_map(map: &BTreeMap<String, String>) -> Result<Vec<Alias>> {
+    aliases_from_map(map, AliasSource::Plugin)
+}
+
+fn aliases_from_map(map: &BTreeMap<String, String>, source: AliasSource) -> Result<Vec<Alias>> {
     let mut out = Vec::new();
     for (name, value) in map {
         let name = name.trim();
@@ -113,7 +122,7 @@ pub fn from_user_map(map: &BTreeMap<String, String>) -> Result<Vec<Alias>> {
         out.push(Alias {
             name: name.to_string(),
             value: value.to_string(),
-            source: AliasSource::User,
+            source,
         });
     }
     Ok(out)
@@ -126,9 +135,33 @@ fn is_valid_alias_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-/// Render PowerShell alias functions.
+/// Render PowerShell alias functions plus session-alias helpers.
 pub fn render_powershell(set: &AliasSet) -> String {
     let mut out = String::from("\n# --- aliases (phase 2) ---\n");
+    out.push_str(
+        r#"
+# Temporary alias for this tab only — like Set-Alias, but allows arguments:
+#   salias myalias git status
+#   salias ll Get-ChildItem -Force
+function salias {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [ValidatePattern('^[A-Za-z_][A-Za-z0-9_-]*$')]
+        [string]$Name,
+        [Parameter(Mandatory, Position = 1, ValueFromRemainingArguments = $true)]
+        [string[]]$Command
+    )
+    $expansion = ($Command -join ' ').Trim()
+    if ([string]::IsNullOrWhiteSpace($expansion)) {
+        throw 'salias: command must not be empty'
+    }
+    $safe = $expansion.Replace("'", "''")
+    Invoke-Expression "function global:$Name { $safe @args }"
+    Write-Host "Session alias: $Name -> $expansion  (this tab only)"
+}
+"#,
+    );
     for alias in set.aliases.values() {
         let value = alias.value.replace(['\r', '\n'], " ");
         out.push_str(&format!("function {} {{ {} @args }}\n", alias.name, value));
@@ -150,5 +183,12 @@ mod tests {
         let set = merge(builtin_aliases(), [], user);
         assert_eq!(set.aliases["gs"].value, "git status -sb");
         assert!(!set.conflicts.is_empty());
+    }
+
+    #[test]
+    fn render_includes_salias() {
+        let ps = render_powershell(&AliasSet::default());
+        assert!(ps.contains("function salias"));
+        assert!(ps.contains("ValueFromRemainingArguments"));
     }
 }

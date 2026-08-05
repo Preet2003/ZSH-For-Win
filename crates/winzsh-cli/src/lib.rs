@@ -9,9 +9,11 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::process::{Command, ExitCode, Stdio};
 use tracing::error;
 use winzsh_alias::{self as alias};
+use winzsh_completion::{self as completion, CompletionPolicy};
 use winzsh_config::{self as config};
 use winzsh_core::{VERSION, WinzshPaths};
 use winzsh_detect::{DetectionReport, detect_environment};
+use winzsh_plugin::{self as plugin};
 use winzsh_doctor::{self as doctor, Severity};
 use winzsh_error::Error;
 use winzsh_history::{self as history, HistoryQuery};
@@ -68,6 +70,12 @@ enum Commands {
     /// History helpers.
     #[command(subcommand)]
     History(HistoryCommands),
+    /// Completion pack helpers.
+    #[command(subcommand)]
+    Completion(CompletionCommands),
+    /// Plugin helpers.
+    #[command(subcommand)]
+    Plugin(PluginCommands),
 }
 
 #[derive(Debug, Subcommand)]
@@ -130,6 +138,38 @@ enum HistoryCommands {
     Compact,
 }
 
+#[derive(Debug, Subcommand)]
+enum CompletionCommands {
+    /// List built-in packs and which are active for this machine.
+    List,
+}
+
+#[derive(Debug, Subcommand)]
+enum PluginCommands {
+    /// List first-party and installed plugins.
+    List,
+    /// Install a first-party plugin (or local path) and enable it.
+    Add {
+        /// First-party id (docker, git, node, rust) or path to a plugin folder.
+        name_or_path: String,
+    },
+    /// Remove an installed plugin and disable it.
+    Remove {
+        /// Plugin id.
+        id: String,
+    },
+    /// Enable an installed plugin and regenerate runtime.
+    Enable {
+        /// Plugin id.
+        id: String,
+    },
+    /// Disable a plugin (keeps files) and regenerate runtime.
+    Disable {
+        /// Plugin id.
+        id: String,
+    },
+}
+
 /// Parse CLI args and dispatch. Returns a process exit code.
 pub fn run() -> ExitCode {
     match run_inner() {
@@ -162,6 +202,8 @@ fn run_inner() -> Result<ExitCode, Error> {
         Commands::Theme(sub) => cmd_theme(&paths, sub, cli.json),
         Commands::Alias(sub) => cmd_alias(&paths, sub, cli.json),
         Commands::History(sub) => cmd_history(&paths, sub, cli.json),
+        Commands::Completion(sub) => cmd_completion(&paths, sub, cli.json),
+        Commands::Plugin(sub) => cmd_plugin(&paths, sub, cli.json),
     }
 }
 
@@ -178,7 +220,7 @@ fn cmd_status(paths: &WinzshPaths, json: bool) -> Result<ExitCode, Error> {
         let payload = serde_json::json!({
             "name": "winzsh",
             "version": VERSION,
-            "phase": "phase-3",
+            "phase": "phase-5",
             "installed": installed,
             "home": paths.root,
             "theme": theme_id,
@@ -586,6 +628,186 @@ fn cmd_history(paths: &WinzshPaths, sub: HistoryCommands, json: bool) -> Result<
                 println!("{}", serde_json::json!({ "entries": n }));
             } else {
                 println!("Compacted history store ({n} entries).");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+    }
+}
+
+fn cmd_completion(
+    paths: &WinzshPaths,
+    sub: CompletionCommands,
+    json: bool,
+) -> Result<ExitCode, Error> {
+    match sub {
+        CompletionCommands::List => {
+            let detected = detect_environment().unwrap_or_default();
+            let policy = match config::load(paths) {
+                Ok(cfg) => CompletionPolicy {
+                    enabled: cfg.completions.enabled,
+                    only: cfg.completions.only.clone(),
+                },
+                Err(_) => CompletionPolicy::default(),
+            };
+            let packs = completion::builtin_packs();
+            if json {
+                let rows: Vec<_> = packs
+                    .iter()
+                    .map(|p| {
+                        serde_json::json!({
+                            "id": p.id,
+                            "command": p.command,
+                            "strategy": p.strategy,
+                            "active": completion::pack_enabled(p, &detected, &policy),
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&rows)
+                        .map_err(|e| Error::Message(e.to_string()))?
+                );
+            } else {
+                if !policy.enabled {
+                    println!("Completions disabled in config ([completions] enabled=false).");
+                }
+                println!("{:<12} {:<10} {:<8} STRATEGY", "ID", "COMMAND", "ACTIVE");
+                for p in &packs {
+                    let active = if completion::pack_enabled(p, &detected, &policy) {
+                        "yes"
+                    } else {
+                        "no"
+                    };
+                    let strategy = match p.strategy {
+                        completion::CompletionStrategy::Builtin => "builtin",
+                        completion::CompletionStrategy::NativeGenerate => "native",
+                        completion::CompletionStrategy::SshHosts => "ssh_hosts",
+                    };
+                    println!(
+                        "{:<12} {:<10} {:<8} {}",
+                        p.id, p.command, active, strategy
+                    );
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+    }
+}
+
+fn cmd_plugin(paths: &WinzshPaths, sub: PluginCommands, json: bool) -> Result<ExitCode, Error> {
+    match sub {
+        PluginCommands::List => {
+            let detected = detect_environment().unwrap_or_default();
+            let enabled = config::load(paths)
+                .map(|c| c.plugins.enabled)
+                .unwrap_or_default();
+            let rows = plugin::list_entries(paths, &enabled, &detected)?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&rows)
+                        .map_err(|e| Error::Message(e.to_string()))?
+                );
+            } else {
+                println!(
+                    "{:<10} {:<8} {:<9} {:<8} {:<8} DESCRIPTION",
+                    "ID", "INSTALLED", "ENABLED", "CMDS_OK", "SOURCE"
+                );
+                for r in rows {
+                    println!(
+                        "{:<10} {:<8} {:<9} {:<8} {:<8} {}",
+                        r.id,
+                        if r.installed { "yes" } else { "no" },
+                        if r.enabled { "yes" } else { "no" },
+                        if r.commands_ok { "yes" } else { "no" },
+                        if r.first_party { "builtin" } else { "local" },
+                        r.description
+                    );
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        PluginCommands::Add { name_or_path } => {
+            require_installed(paths)?;
+            let path = std::path::Path::new(&name_or_path);
+            let manifest = if path.is_dir() || name_or_path.contains(['/', '\\']) {
+                eprintln!(
+                    "Warning: installing from local path (not signature-verified): {name_or_path}"
+                );
+                plugin::add_from_path(paths, path)?
+            } else {
+                plugin::add_first_party(paths, &name_or_path)?
+            };
+            let mut cfg = config::load(paths)?;
+            if !cfg.plugins.enabled.iter().any(|e| e == &manifest.name) {
+                cfg.plugins.enabled.push(manifest.name.clone());
+            }
+            config::save(paths, &cfg)?;
+            let report = runtime_gen::generate(paths, &cfg)?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "id": manifest.name,
+                        "version": manifest.version,
+                        "runtime_wrote": report.wrote,
+                    })
+                );
+            } else {
+                println!(
+                    "Installed and enabled plugin '{}' v{}.",
+                    manifest.name, manifest.version
+                );
+                println!("Open a new PowerShell tab to load plugin aliases/hooks.");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        PluginCommands::Remove { id } => {
+            require_installed(paths)?;
+            plugin::remove(paths, &id)?;
+            let mut cfg = config::load(paths)?;
+            cfg.plugins.enabled.retain(|e| e != &id);
+            config::save(paths, &cfg)?;
+            runtime_gen::generate(paths, &cfg)?;
+            if json {
+                println!("{}", serde_json::json!({ "removed": id }));
+            } else {
+                println!("Removed plugin '{id}'.");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        PluginCommands::Enable { id } => {
+            require_installed(paths)?;
+            let _ = plugin::load(paths, &id)?;
+            let mut cfg = config::load(paths)?;
+            if !cfg.plugins.enabled.iter().any(|e| e == &id) {
+                cfg.plugins.enabled.push(id.clone());
+            }
+            config::save(paths, &cfg)?;
+            runtime_gen::generate(paths, &cfg)?;
+            if json {
+                println!("{}", serde_json::json!({ "enabled": id }));
+            } else {
+                println!("Enabled plugin '{id}'. Open a new PowerShell tab to apply.");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        PluginCommands::Disable { id } => {
+            require_installed(paths)?;
+            let mut cfg = config::load(paths)?;
+            let before = cfg.plugins.enabled.len();
+            cfg.plugins.enabled.retain(|e| e != &id);
+            if cfg.plugins.enabled.len() == before {
+                return Err(winzsh_error::message(format!(
+                    "plugin '{id}' is not in the enabled list"
+                )));
+            }
+            config::save(paths, &cfg)?;
+            runtime_gen::generate(paths, &cfg)?;
+            if json {
+                println!("{}", serde_json::json!({ "disabled": id }));
+            } else {
+                println!("Disabled plugin '{id}' (files kept).");
             }
             Ok(ExitCode::SUCCESS)
         }

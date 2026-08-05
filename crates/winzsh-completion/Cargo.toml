@@ -10,8 +10,8 @@ description = "WinZSH completion catalog contracts"
 
 [dependencies]
 winzsh-core = { workspace = true }
-winzsh-error = { workspace = true }
 winzsh-detect = { workspace = true }
+serde = { workspace = true }
 
 [lints]
 workspace = true

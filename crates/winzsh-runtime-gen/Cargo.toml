@@ -13,6 +13,7 @@ winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-fs = { workspace = true }
 winzsh-config = { workspace = true }
+winzsh-detect = { workspace = true }
 winzsh-prompt = { workspace = true }
 winzsh-completion = { workspace = true }
 winzsh-suggest = { workspace = true }
