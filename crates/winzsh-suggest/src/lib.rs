@@ -144,9 +144,52 @@ pub fn render_powershell(policy: &SuggestPolicy) -> String {
 
     out.push_str(
         r#"
+function Update-WinZshSessionPath {
+    [CmdletBinding()]
+    param()
+    # Pick up winget/user PATH changes without requiring a full OS logoff.
+    try {
+        $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+        $user = [Environment]::GetEnvironmentVariable('Path', 'User')
+        if ($machine -or $user) {
+            $env:PATH = @($machine, $user) -join ';'
+        }
+    } catch {
+        Write-Verbose "WinZSH: PATH refresh failed: $_"
+    }
+}
+
+function Resolve-WinZshTool {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source) { return $cmd.Source }
+
+    $candidates = @()
+    if ($env:LOCALAPPDATA) {
+        $winget = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
+        if (Test-Path -LiteralPath $winget) {
+            $hit = Get-ChildItem -LiteralPath $winget -Recurse -Filter ($Name + '.exe') -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+            if ($hit) { $candidates += $hit.FullName }
+        }
+        $links = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links'
+        $linkExe = Join-Path $links ($Name + '.exe')
+        if (Test-Path -LiteralPath $linkExe) { $candidates += $linkExe }
+    }
+    foreach ($c in $candidates) {
+        if (Test-Path -LiteralPath $c) { return $c }
+    }
+    return $null
+}
+
 function Initialize-WinZshSmartShell {
     [CmdletBinding()]
     param()
+    Update-WinZshSessionPath
     if (-not (Get-Module -ListAvailable -Name PSReadLine)) {
         Write-Warning 'WinZSH: PSReadLine not found; autosuggestions/syntax unavailable.'
         return
@@ -228,7 +271,12 @@ function Initialize-WinZshSmartShell {
     if policy.fzf {
         out.push_str(
             r#"
-    if ($script:WinZshFzf -and (Get-Command fzf -ErrorAction SilentlyContinue)) {
+    $script:WinZshFzfPath = Resolve-WinZshTool -Name fzf
+    if ($script:WinZshFzf -and $script:WinZshFzfPath) {
+        $fzfDir = Split-Path -Parent $script:WinZshFzfPath
+        if ($env:PATH -notlike ("*" + $fzfDir + "*")) {
+            $env:PATH = $fzfDir + ';' + $env:PATH
+        }
         Set-PSReadLineKeyHandler -Key Ctrl+r -BriefDescription 'WinZSH fzf history' -ScriptBlock {
             $histPath = (Get-PSReadLineOption).HistorySavePath
             $lines = @()
@@ -239,7 +287,8 @@ function Initialize-WinZshSmartShell {
                 $lines = @(Get-History | ForEach-Object { $_.CommandLine })
             }
             if (-not $lines -or $lines.Count -eq 0) { return }
-            $selection = $lines | fzf --tac --no-sort --height=40% --reverse
+            $fzfExe = if ($script:WinZshFzfPath) { $script:WinZshFzfPath } else { 'fzf' }
+            $selection = $lines | & $fzfExe --tac --no-sort --height=40% --reverse
             if ($selection) {
                 [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
                 [Microsoft.PowerShell.PSConsoleReadLine]::Insert($selection)
@@ -253,24 +302,33 @@ function Initialize-WinZshSmartShell {
     if policy.zoxide {
         out.push_str(
             r#"
-    if ($script:WinZshZoxide -and (Get-Command zoxide -ErrorAction SilentlyContinue)) {
+    $zoxidePath = Resolve-WinZshTool -Name zoxide
+    if ($script:WinZshZoxide -and $zoxidePath) {
         try {
-            Invoke-Expression (& { (zoxide init powershell | Out-String) })
+            $zoxideDir = Split-Path -Parent $zoxidePath
+            if ($env:PATH -notlike ("*" + $zoxideDir + "*")) {
+                $env:PATH = $zoxideDir + ';' + $env:PATH
+            }
+            # --hook none: WinZSH owns `prompt` (module export). We call `zoxide add` from our prompt.
+            $initScript = & $zoxidePath init powershell --hook none | Out-String
+            $null = $ExecutionContext.InvokeCommand.InvokeScript(
+                $false,
+                [scriptblock]::Create($initScript),
+                $null,
+                @()
+            )
+            $global:WinZshZoxidePath = $zoxidePath
         } catch {
-            Write-Verbose "WinZSH: zoxide init failed: $_"
+            Write-Warning "WinZSH: zoxide init failed: $_"
         }
     }
 "#,
         );
     }
 
-    out.push_str(
-        r#"
-}
-
-Initialize-WinZshSmartShell
-"#,
-    );
+    // Caller (runtime-gen) must invoke Initialize-WinZshSmartShell *after* Export-ModuleMember
+    // so zoxide's prompt wrapper is not overwritten by exporting `prompt`.
+    out.push_str("\n}\n");
     out
 }
 
@@ -300,6 +358,8 @@ mod tests {
         assert!(ps.contains("RightArrow"));
         assert!(ps.contains("InlinePrediction"));
         assert!(ps.contains("Initialize-WinZshSmartShell"));
+        assert!(ps.contains("Update-WinZshSessionPath"));
+        assert!(ps.contains("Resolve-WinZshTool"));
     }
 
     #[test]

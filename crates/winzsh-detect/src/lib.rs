@@ -57,8 +57,8 @@ pub fn detect_environment() -> Result<DetectionReport> {
     let windows_powershell = find_windows_powershell();
     let git = find_on_path("git");
     let windows_terminal = find_on_path("wt");
-    let fzf = find_on_path("fzf");
-    let zoxide = find_on_path("zoxide");
+    let fzf = find_on_path("fzf").or_else(|| find_winget_tool("fzf"));
+    let zoxide = find_on_path("zoxide").or_else(|| find_winget_tool("zoxide"));
     let profile_path = resolve_profile_path(pwsh.as_deref().or(windows_powershell.as_deref()))?;
 
     let mut commands = Vec::new();
@@ -184,6 +184,45 @@ fn find_windows_powershell_well_known() -> Option<PathBuf> {
         .join("v1.0")
         .join("powershell.exe");
     candidate.is_file().then_some(candidate)
+}
+
+/// Search WinGet package/link folders for a tool (handles stale session PATH).
+pub fn find_winget_tool(name: &str) -> Option<PathBuf> {
+    if !cfg!(windows) {
+        return None;
+    }
+    let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from)?;
+    let links = local
+        .join("Microsoft")
+        .join("WinGet")
+        .join("Links")
+        .join(format!("{name}.exe"));
+    if links.is_file() {
+        return Some(links);
+    }
+    let packages = local.join("Microsoft").join("WinGet").join("Packages");
+    if !packages.is_dir() {
+        return None;
+    }
+    let mut stack = vec![packages];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .is_some_and(|n| n.eq_ignore_ascii_case(&format!("{name}.exe")))
+            {
+                return Some(path);
+            }
+        }
+    }
+    None
 }
 
 /// Find an executable on PATH (Windows-aware).

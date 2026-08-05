@@ -125,6 +125,16 @@ function prompt {{
     if (Get-Command Write-WinZshHistoryFromPrompt -ErrorAction SilentlyContinue) {{
         Write-WinZshHistoryFromPrompt
     }}
+    # Teach zoxide about the current directory (zoxide cannot wrap our module-exported prompt).
+    try {{
+        $zoxideExe = $null
+        if ($global:WinZshZoxidePath) {{ $zoxideExe = $global:WinZshZoxidePath }}
+        elseif (Get-Command zoxide -ErrorAction SilentlyContinue) {{ $zoxideExe = (Get-Command zoxide).Source }}
+        if ($zoxideExe) {{
+            $cwd = (Get-Location).ProviderPath
+            if ($cwd) {{ $null = & $zoxideExe add -- $cwd }}
+        }}
+    }} catch {{ }}
     return "$pathSeg$gitSeg`n{prompt_color}{prompt_sym}{reset} "
 }}
 "#
@@ -142,5 +152,7 @@ mod tests {
         let ps = render_powershell(&theme, &PromptPlan::default());
         assert!(ps.contains("function prompt"));
         assert!(ps.contains("Get-WinZshGitSegment"));
+        assert!(ps.contains("add --"));
+        assert!(ps.contains("WinZshZoxidePath"));
     }
 }

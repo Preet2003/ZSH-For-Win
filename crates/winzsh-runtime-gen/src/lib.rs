@@ -134,7 +134,7 @@ function Get-WinZshInfo {
     body.push_str(&alias::render_powershell(&aliases));
     body.push_str(&suggest::render_powershell(&policy));
     body.push_str(
-        "\nExport-ModuleMember -Function Get-WinZshInfo,Get-WinZshPathSegment,Get-WinZshGitSegment,prompt,Initialize-WinZshSmartShell\n",
+        "\nExport-ModuleMember -Function Get-WinZshInfo,Get-WinZshPathSegment,Get-WinZshGitSegment,prompt,Initialize-WinZshSmartShell,Update-WinZshSessionPath,Resolve-WinZshTool\n",
     );
     for name in aliases.aliases.keys() {
         body.push_str(&format!("Export-ModuleMember -Function {name}\n"));
@@ -142,6 +142,9 @@ function Get-WinZshInfo {
     if history_enabled {
         body.push_str("Export-ModuleMember -Function Write-WinZshHistoryFromPrompt\n");
     }
+    // MUST run after exporting `prompt`. zoxide wraps the session prompt to learn `cd` targets;
+    // exporting afterward would replace that wrapper and leave the DB empty forever.
+    body.push_str("\nInitialize-WinZshSmartShell\n");
     Ok(body)
 }
 
@@ -168,6 +171,14 @@ mod tests {
         assert!(module.contains("AcceptSuggestion"));
         assert!(module.contains("phase-3"));
         assert!(module.contains("Initialize-WinZshSmartShell"));
+        let export_at = module
+            .rfind("Export-ModuleMember")
+            .expect("export");
+        let init_at = module.rfind("Initialize-WinZshSmartShell").expect("init");
+        assert!(
+            init_at > export_at,
+            "zoxide/smart init must run after Export-ModuleMember"
+        );
         let again = generate(&paths, &cfg).expect("gen2");
         assert!(!again.wrote);
         let _ = std::fs::remove_dir_all(&root);
