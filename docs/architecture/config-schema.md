@@ -58,6 +58,11 @@ enabled = true
 [plugins]
 enabled = ["git", "docker"]
 
+[ai]
+provider = "local"   # or "openai"
+model = "gpt-4o-mini"
+api_base = "https://api.openai.com/v1"
+
 [aliases]
 # user aliases only; plugin aliases come from manifests
 # gs = "git status -sb"

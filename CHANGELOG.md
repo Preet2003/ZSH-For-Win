@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 6 AI helpers: `ai enable|disable|status|explain|ask|check|alias` (opt-in; local + optional OpenAI)
 - Phase 5 plugin manager: `plugin list|add|remove|enable|disable`
 - First-party plugins: docker, git, node, rust (aliases + optional hooks)
 - Plugin materialization into runtime (failure-isolated); config `[plugins].enabled`

@@ -8,9 +8,10 @@ use clap::{Parser, Subcommand};
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::process::{Command, ExitCode, Stdio};
 use tracing::error;
+use winzsh_ai::{self as ai, AiProvider, AiSettings};
 use winzsh_alias::{self as alias};
 use winzsh_completion::{self as completion, CompletionPolicy};
-use winzsh_config::{self as config};
+use winzsh_config::{self as config, Config};
 use winzsh_core::{VERSION, WinzshPaths};
 use winzsh_detect::{DetectionReport, detect_environment};
 use winzsh_plugin::{self as plugin};
@@ -76,6 +77,9 @@ enum Commands {
     /// Plugin helpers.
     #[command(subcommand)]
     Plugin(PluginCommands),
+    /// AI helpers (Phase 6; opt-in).
+    #[command(subcommand)]
+    Ai(AiCommands),
 }
 
 #[derive(Debug, Subcommand)]
@@ -145,6 +149,40 @@ enum CompletionCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum AiCommands {
+    /// Show AI enablement / provider / key status.
+    Status,
+    /// Enable AI helpers (`features.ai=true`).
+    Enable,
+    /// Disable AI helpers.
+    Disable,
+    /// Explain a shell command.
+    Explain {
+        /// Command words (quote the whole command if needed).
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+        command: Vec<String>,
+    },
+    /// Convert English to a PowerShell command.
+    Ask {
+        /// Natural-language request.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+        prompt: Vec<String>,
+    },
+    /// Scan a command for dangerous patterns (works even when AI is disabled).
+    Check {
+        /// Command to scan.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+        command: Vec<String>,
+    },
+    /// Suggest an alias from a description.
+    Alias {
+        /// What the alias should do.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+        description: Vec<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum PluginCommands {
     /// List first-party and installed plugins.
     List,
@@ -204,6 +242,7 @@ fn run_inner() -> Result<ExitCode, Error> {
         Commands::History(sub) => cmd_history(&paths, sub, cli.json),
         Commands::Completion(sub) => cmd_completion(&paths, sub, cli.json),
         Commands::Plugin(sub) => cmd_plugin(&paths, sub, cli.json),
+        Commands::Ai(sub) => cmd_ai(&paths, sub, cli.json),
     }
 }
 
@@ -220,7 +259,7 @@ fn cmd_status(paths: &WinzshPaths, json: bool) -> Result<ExitCode, Error> {
         let payload = serde_json::json!({
             "name": "winzsh",
             "version": VERSION,
-            "phase": "phase-5",
+            "phase": "phase-6",
             "installed": installed,
             "home": paths.root,
             "theme": theme_id,
@@ -817,6 +856,158 @@ fn cmd_plugin(paths: &WinzshPaths, sub: PluginCommands, json: bool) -> Result<Ex
             Ok(ExitCode::SUCCESS)
         }
     }
+}
+
+fn cmd_ai(paths: &WinzshPaths, sub: AiCommands, json: bool) -> Result<ExitCode, Error> {
+    match sub {
+        AiCommands::Status => {
+            let cfg = config::load(paths).unwrap_or_else(|_| Config::default());
+            let settings = ai_settings_from_config(&cfg);
+            let key = ai::api_key_from_env().is_some();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "enabled": settings.enabled,
+                        "provider": settings.provider,
+                        "model": settings.model,
+                        "api_base": settings.api_base,
+                        "api_key_present": key,
+                        "cloud_ready": ai::cloud_ready(&settings),
+                    })
+                );
+            } else {
+                println!("AI enabled: {}", settings.enabled);
+                println!("Provider: {:?}", settings.provider);
+                println!("Model: {}", settings.model);
+                println!("API base: {}", settings.api_base);
+                println!(
+                    "API key: {}",
+                    if key {
+                        "present (WINZSH_AI_API_KEY or OPENAI_API_KEY)"
+                    } else {
+                        "not set"
+                    }
+                );
+                if !settings.enabled {
+                    println!("Tip: winzsh ai enable");
+                } else if settings.provider == AiProvider::Openai && !key {
+                    println!("Tip: set WINZSH_AI_API_KEY for cloud explain/ask (local still works).");
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        AiCommands::Enable => {
+            require_installed(paths)?;
+            let mut cfg = config::load(paths)?;
+            cfg.features.ai = true;
+            config::save(paths, &cfg)?;
+            if json {
+                println!("{{\"enabled\":true}}");
+            } else {
+                println!("AI enabled (features.ai=true). Provider: {}", cfg.ai.provider);
+                println!("Try: winzsh ai explain git status");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        AiCommands::Disable => {
+            require_installed(paths)?;
+            let mut cfg = config::load(paths)?;
+            cfg.features.ai = false;
+            config::save(paths, &cfg)?;
+            if json {
+                println!("{{\"enabled\":false}}");
+            } else {
+                println!("AI disabled.");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        AiCommands::Explain { command } => {
+            require_installed(paths)?;
+            let cfg = config::load(paths)?;
+            let settings = ai_settings_from_config(&cfg);
+            let joined = command.join(" ");
+            let result = ai::explain(&settings, &joined)?;
+            print_ai_text(&result, json)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        AiCommands::Ask { prompt } => {
+            require_installed(paths)?;
+            let cfg = config::load(paths)?;
+            let settings = ai_settings_from_config(&cfg);
+            let joined = prompt.join(" ");
+            let result = ai::ask(&settings, &joined)?;
+            print_ai_text(&result, json)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        AiCommands::Check { command } => {
+            let joined = command.join(" ");
+            let report = ai::check_safety(&joined);
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&report)
+                        .map_err(|e| Error::Message(e.to_string()))?
+                );
+            } else {
+                println!("Command: {}", report.command);
+                println!("Level: {:?}", report.level);
+                if report.findings.is_empty() {
+                    println!("No dangerous patterns detected (heuristics only).");
+                } else {
+                    for f in &report.findings {
+                        println!("- [{:?}] {}: {}", f.level, f.code, f.message);
+                        if let Some(safer) = &f.safer {
+                            println!("  safer: {safer}");
+                        }
+                    }
+                }
+            }
+            Ok(if matches!(report.level, ai::SafetyLevel::Danger) {
+                ExitCode::from(2)
+            } else {
+                ExitCode::SUCCESS
+            })
+        }
+        AiCommands::Alias { description } => {
+            require_installed(paths)?;
+            let cfg = config::load(paths)?;
+            let settings = ai_settings_from_config(&cfg);
+            let joined = description.join(" ");
+            let result = ai::suggest_alias(&settings, &joined)?;
+            print_ai_text(&result, json)?;
+            Ok(ExitCode::SUCCESS)
+        }
+    }
+}
+
+fn ai_settings_from_config(cfg: &Config) -> AiSettings {
+    let provider = match cfg.ai.provider.trim().to_ascii_lowercase().as_str() {
+        "openai" => AiProvider::Openai,
+        _ => AiProvider::Local,
+    };
+    AiSettings {
+        enabled: cfg.features.ai,
+        provider,
+        model: cfg.ai.model.clone(),
+        api_base: cfg.ai.api_base.clone(),
+    }
+}
+
+fn print_ai_text(result: &ai::AiTextResult, json: bool) -> Result<(), Error> {
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(result).map_err(|e| Error::Message(e.to_string()))?
+        );
+    } else {
+        println!("{}", result.text);
+        for note in &result.notes {
+            eprintln!("note: {note}");
+        }
+        eprintln!("provider: {}", result.provider);
+    }
+    Ok(())
 }
 
 fn require_installed(paths: &WinzshPaths) -> Result<(), Error> {

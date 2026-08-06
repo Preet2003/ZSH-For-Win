@@ -38,6 +38,7 @@ Assert-DependsOn "winzsh-runtime-gen" "winzsh-prompt"
 Assert-DependsOn "winzsh-runtime-gen" "winzsh-plugin"
 Assert-DependsOn "winzsh-registry" "winzsh-plugin"
 Assert-DependsOn "winzsh-ai" "winzsh-core"
+Assert-DependsOn "winzsh-cli" "winzsh-ai"
 Assert-DependsOn "winzsh-sync" "winzsh-history"
 
 Assert-NotDependsOn "winzsh-core" "winzsh-cli"

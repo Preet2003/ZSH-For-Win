@@ -51,7 +51,7 @@ Rust owns contracts and codegen inputs; PowerShell executes at runtime.
 |-------|----------------|
 | `winzsh-plugin` | Manifest parse, lifecycle, trust, dependency DAG. No network. |
 | `winzsh-registry` | HTTPS index client, signature hooks, caching. |
-| `winzsh-ai` | Stub until Phase 6 (AI explain/convert/safety). |
+| `winzsh-ai` | AI explain/ask/alias/safety (local + optional OpenAI-compatible HTTP). |
 | `winzsh-sync` | Stub until sync phase. |
 
 ## Binary

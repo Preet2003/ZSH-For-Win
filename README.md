@@ -11,9 +11,9 @@ enhances PowerShell 7 with zero manual profile editing:
 - First-class plugin ecosystem
 - One command install (`winget install winzsh` / `winzsh install`)
 
-> Status: **Phase 5 plugins**. Phases 1–5 are in: install/doctor, themes/prompt/aliases/history,
-> smart shell (autosuggest/syntax/fzf/zoxide), completion packs, and first-party plugins.
-> See [docs/architecture/](docs/architecture/) and [PHASE5-GATE.md](docs/architecture/PHASE5-GATE.md).
+> Status: **Phase 6 AI helpers**. Phases 1–6 are in: install/doctor, themes/prompt/aliases/history,
+> smart shell, completions, plugins, and opt-in AI (`explain` / `ask` / `check` / `alias`).
+> See [docs/architecture/](docs/architecture/) and [PHASE6-GATE.md](docs/architecture/PHASE6-GATE.md).
 
 ## Quick start
 

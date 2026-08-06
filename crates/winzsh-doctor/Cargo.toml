@@ -12,6 +12,7 @@ description = "WinZSH diagnostics"
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-fs = { workspace = true }
+winzsh-ai = { workspace = true }
 winzsh-config = { workspace = true }
 winzsh-completion = { workspace = true }
 winzsh-detect = { workspace = true }

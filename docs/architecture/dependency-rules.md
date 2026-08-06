@@ -14,6 +14,7 @@ winzsh
        ├─ winzsh-plugin
        ├─ winzsh-theme
        ├─ winzsh-alias
+       ├─ winzsh-ai
        ├─ winzsh-config
        └─ winzsh-runtime-gen ─┬─ winzsh-prompt
                               ├─ winzsh-completion
@@ -23,7 +24,7 @@ winzsh
                               └─ winzsh-plugin
 
 winzsh-registry → winzsh-plugin
-winzsh-ai       → winzsh-core
+winzsh-ai       → winzsh-core (+ optional HTTP)
 winzsh-sync     → winzsh-history
 ```
 
@@ -34,10 +35,10 @@ sit at the bottom. Engines sit in the middle. CLI/installer sit at the top.
 
 1. **Acyclic graph.** Cycles fail CI.
 2. **No engine → CLI** dependencies.
-3. **Network only** in `winzsh-registry`, `winzsh-update` (later `winzsh-sync`, `winzsh-ai`).
+3. **Network only** in `winzsh-registry`, `winzsh-update`, `winzsh-ai` (later `winzsh-sync`).
 4. **PowerShell string templates only** in `winzsh-powershell`, `winzsh-runtime-gen`, and
    `runtime/powershell/`.
-5. **`winzsh-ai` / `winzsh-sync` are not wired into V1 CLI command paths** until those phases ship.
+5. **`winzsh-sync` is not wired into CLI command paths** until that phase ships.
 6. Prefer `std` + small deps. Staples: `serde`, `toml`, `thiserror`, `miette`, `tracing`,
    `clap`, `dirs`, `time`. `tokio` only where async IO is real. HTTP clients only in network crates.
    SQLite only behind history.

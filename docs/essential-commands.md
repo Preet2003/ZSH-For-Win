@@ -98,7 +98,34 @@ winzsh alias set myalias "git status"
 | `plugin remove <id>` | Uninstall plugin files + disable |
 | `plugin enable <id>` | Enable installed plugin |
 | `plugin disable <id>` | Disable (keep files) |
+| `ai status` | AI enablement / provider / key status |
+| `ai enable` / `ai disable` | Toggle `features.ai` |
+| `ai explain <cmd…>` | Explain a command (opt-in) |
+| `ai ask <text…>` | English → PowerShell suggestion (opt-in) |
+| `ai check <cmd…>` | Safety scan (works even when AI off) |
+| `ai alias <text…>` | Suggest an alias (opt-in) |
 | `uninstall` | Remove managed profile hook (keep `~/.winzsh`) |
+
+### AI helpers (Phase 6)
+
+Off by default. Local heuristics need no API key; cloud needs `WINZSH_AI_API_KEY` or `OPENAI_API_KEY`.
+
+```powershell
+cargo run -p winzsh -- ai enable
+cargo run -p winzsh -- ai explain "git reset --hard HEAD~1"
+cargo run -p winzsh -- ai ask "delete node_modules recursively"
+cargo run -p winzsh -- ai check "git push --force"
+```
+
+```toml
+[features]
+ai = true
+
+[ai]
+provider = "local"   # or "openai"
+model = "gpt-4o-mini"
+api_base = "https://api.openai.com/v1"
+```
 | `uninstall --purge` | Remove hook **and** delete `~/.winzsh` |
 
 ### Plugins (Phase 5)
@@ -254,8 +281,7 @@ Architecture / design: [`docs/architecture/`](architecture/).
 |---------|----------------|
 | `update` | Self-update / channel |
 | `sync` | Settings sync |
-| `ai` | AI helpers (Phase 6) |
-| plugin registry | Signed community packs (post–Phase 5) |
+| plugin registry | Signed community packs |
 
 When a command ships, move it into **Core CLI commands** above and add a short workflow section.
 

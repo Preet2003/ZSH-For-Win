@@ -6,10 +6,15 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-description = "WinZSH AI module (Phase 6 stub)"
+description = "WinZSH AI helpers (explain, ask, safety, alias suggest)"
 
 [dependencies]
 winzsh-core = { workspace = true }
+winzsh-error = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+ureq = { workspace = true }
 
 [lints]
 workspace = true

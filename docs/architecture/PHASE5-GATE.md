@@ -31,4 +31,4 @@ cargo run -p winzsh -- plugin add .\plugins\node
 
 ## Next
 
-Phase 6 (AI helpers) and/or plugin registry (signed community packs).
+Phase 6 — see [`PHASE6-GATE.md`](PHASE6-GATE.md).

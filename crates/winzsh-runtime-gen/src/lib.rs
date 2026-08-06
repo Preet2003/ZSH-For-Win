@@ -141,10 +141,10 @@ function Get-WinZshInfo {
     param()
     [pscustomobject]@{
         Name    = 'WinZSH'
-        Phase   = 'phase-5'
+        Phase   = 'phase-6'
         Theme   = $script:WinZshThemeId
         Plugins = @($script:WinZshPluginsLoaded)
-        Message = 'WinZSH runtime loaded (Phase 5 plugins).'
+        Message = 'WinZSH runtime loaded (Phase 6 AI helpers via CLI).'
     }
 }
 "#,
@@ -202,7 +202,7 @@ mod tests {
         let report = generate(&paths, &cfg).expect("gen");
         assert!(report.wrote);
         let module = read_string(&paths.runtime_module()).expect("read");
-        assert!(module.contains("phase-5"));
+        assert!(module.contains("phase-6"));
         assert!(module.contains("plugins (phase 5)"));
         assert!(module.contains("Initialize-WinZshCompletions"));
         // git plugin aliases when git is on PATH (typical in CI/dev)

@@ -40,6 +40,9 @@ pub struct Config {
     /// Enabled plugins (Phase 5 fills behavior; stored from Phase 1).
     #[serde(default)]
     pub plugins: PluginsConfig,
+    /// AI helper preferences (Phase 6).
+    #[serde(default)]
+    pub ai: AiConfig,
     /// Update preferences.
     #[serde(default)]
     pub update: UpdateConfig,
@@ -64,6 +67,7 @@ impl Default for Config {
             smart: SmartConfig::default(),
             completions: CompletionsConfig::default(),
             plugins: PluginsConfig::default(),
+            ai: AiConfig::default(),
             update: UpdateConfig::default(),
             telemetry: TelemetryConfig::default(),
         }
@@ -198,6 +202,42 @@ pub struct PluginsConfig {
     pub enabled: Vec<String>,
 }
 
+/// AI provider configuration (master switch is `features.ai`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AiConfig {
+    /// `local` (offline) or `openai` (OpenAI-compatible HTTP).
+    #[serde(default = "default_ai_provider")]
+    pub provider: String,
+    /// Model id for cloud provider.
+    #[serde(default = "default_ai_model")]
+    pub model: String,
+    /// API base URL for OpenAI-compatible endpoints.
+    #[serde(default = "default_ai_base")]
+    pub api_base: String,
+}
+
+fn default_ai_provider() -> String {
+    "local".into()
+}
+
+fn default_ai_model() -> String {
+    "gpt-4o-mini".into()
+}
+
+fn default_ai_base() -> String {
+    "https://api.openai.com/v1".into()
+}
+
+impl Default for AiConfig {
+    fn default() -> Self {
+        Self {
+            provider: default_ai_provider(),
+            model: default_ai_model(),
+            api_base: default_ai_base(),
+        }
+    }
+}
+
 /// Update-related configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UpdateConfig {
@@ -247,6 +287,18 @@ pub fn validate(cfg: &Config) -> Result<()> {
     }
     if cfg.prompt.budget_ms == 0 {
         return Err(config("prompt.budget_ms must be >= 1"));
+    }
+    let provider = cfg.ai.provider.trim().to_ascii_lowercase();
+    if provider != "local" && provider != "openai" {
+        return Err(config(
+            "ai.provider must be \"local\" or \"openai\"",
+        ));
+    }
+    if cfg.ai.model.trim().is_empty() {
+        return Err(config("ai.model must not be empty"));
+    }
+    if cfg.ai.api_base.trim().is_empty() {
+        return Err(config("ai.api_base must not be empty"));
     }
     Ok(())
 }

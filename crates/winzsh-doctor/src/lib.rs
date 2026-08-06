@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 use serde::Serialize;
+use winzsh_ai::{self as ai};
 use winzsh_completion::{self as completion, CompletionPolicy};
 use winzsh_config::{self as config};
 use winzsh_core::WinzshPaths;
@@ -239,6 +240,31 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
             }
         }
 
+        if cfg.features.ai {
+            let key = ai::api_key_from_env().is_some();
+            diagnostics.push(Diagnostic::info(
+                "ai.enabled",
+                format!(
+                    "AI enabled (provider={}, model={}, api_key={})",
+                    cfg.ai.provider,
+                    cfg.ai.model,
+                    if key { "present" } else { "absent" }
+                ),
+            ));
+            if cfg.ai.provider.eq_ignore_ascii_case("openai") && !key {
+                diagnostics.push(Diagnostic::warning(
+                    "ai.key_missing",
+                    "ai.provider=openai but no WINZSH_AI_API_KEY / OPENAI_API_KEY",
+                    "Set a key, or set ai.provider=\"local\" for offline heuristics",
+                ));
+            }
+        } else {
+            diagnostics.push(Diagnostic::info(
+                "ai.disabled",
+                "AI disabled (features.ai=false); `winzsh ai check` still works offline",
+            ));
+        }
+
         if cfg.plugins.enabled.is_empty() {
             diagnostics.push(Diagnostic::info(
                 "plugins.none",
@@ -324,16 +350,19 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
                         "Run `winzsh reload` to upgrade",
                     ));
                 }
-                if module.contains("plugins (phase 5)") || module.contains("phase-5") {
+                if module.contains("plugins (phase 5)")
+                    || module.contains("phase-5")
+                    || module.contains("phase-6")
+                {
                     diagnostics.push(Diagnostic::info(
                         "plugins.runtime",
-                        "runtime module includes Phase 5 plugin section",
+                        "runtime module includes plugin section",
                     ));
                 } else {
                     diagnostics.push(Diagnostic::warning(
                         "plugins.runtime_missing",
                         "runtime module missing plugin section",
-                        "Run `winzsh reload` to upgrade to Phase 5",
+                        "Run `winzsh reload` to upgrade",
                     ));
                 }
             }

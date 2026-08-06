@@ -12,6 +12,7 @@ description = "WinZSH CLI command tree and UX"
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-log = { workspace = true }
+winzsh-ai = { workspace = true }
 winzsh-config = { workspace = true }
 winzsh-detect = { workspace = true }
 winzsh-installer = { workspace = true }
