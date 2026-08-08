@@ -36,7 +36,7 @@ impl Default for PromptPlan {
     fn default() -> Self {
         Self {
             segments: vec![SegmentKind::Path, SegmentKind::Git, SegmentKind::PromptChar],
-            budget_ms: 20,
+            budget_ms: 50,
             git_enabled: true,
         }
     }
@@ -51,7 +51,7 @@ pub fn plan_from_flags(show_git: bool) -> PromptPlan {
     segments.push(SegmentKind::PromptChar);
     PromptPlan {
         segments,
-        budget_ms: 20,
+        budget_ms: 50,
         git_enabled: show_git,
     }
 }
@@ -61,13 +61,40 @@ pub fn ps_single_quote(value: &str) -> String {
     value.replace('\'', "''")
 }
 
+/// Map a `$PSStyle.Foreground.X` palette expression to a `Write-Host -ForegroundColor` name.
+fn console_color_from_palette(expr: &str) -> &'static str {
+    let upper = expr.to_ascii_uppercase();
+    for (name, color) in [
+        ("BRIGHTBLUE", "Blue"),
+        ("BRIGHTGREEN", "Green"),
+        ("BRIGHTYELLOW", "Yellow"),
+        ("BRIGHTMAGENTA", "Magenta"),
+        ("BRIGHTCYAN", "Cyan"),
+        ("BRIGHTRED", "Red"),
+        ("BRIGHTWHITE", "White"),
+        ("CYAN", "Cyan"),
+        ("GREEN", "Green"),
+        ("YELLOW", "Yellow"),
+        ("MAGENTA", "Magenta"),
+        ("BLUE", "Blue"),
+        ("RED", "Red"),
+        ("WHITE", "White"),
+        ("GRAY", "Gray"),
+        ("DARKGRAY", "DarkGray"),
+    ] {
+        if upper.contains(name) {
+            return color;
+        }
+    }
+    "Cyan"
+}
+
 /// Render PowerShell prompt helpers for a theme + plan.
 pub fn render_powershell(theme: &Theme, plan: &PromptPlan) -> String {
-    let path_color = &theme.palette.path;
-    let git_clean = &theme.palette.git_clean;
-    let git_dirty = &theme.palette.git_dirty;
-    let prompt_color = &theme.palette.prompt;
-    let reset = &theme.palette.reset;
+    let path_color = console_color_from_palette(&theme.palette.path);
+    let git_clean = console_color_from_palette(&theme.palette.git_clean);
+    let git_dirty = console_color_from_palette(&theme.palette.git_dirty);
+    let prompt_color = console_color_from_palette(&theme.palette.prompt);
     let prompt_sym = ps_single_quote(&theme.symbols.prompt);
     let dirty_sym = ps_single_quote(&theme.symbols.git_dirty);
     let clean_sym = ps_single_quote(&theme.symbols.git_clean);
@@ -79,16 +106,21 @@ pub fn render_powershell(theme: &Theme, plan: &PromptPlan) -> String {
 # --- prompt (phase 2) ---
 $script:WinZshGitEnabled = {git_enabled}
 $script:WinZshPromptBudgetMs = {budget}
+$script:WinZshPathColor = '{path_color}'
+$script:WinZshGitCleanColor = '{git_clean}'
+$script:WinZshGitDirtyColor = '{git_dirty}'
+$script:WinZshPromptColor = '{prompt_color}'
+$script:WinZshPromptSymbol = '{prompt_sym}'
 
 function Get-WinZshPathSegment {{
     [CmdletBinding()]
     param()
     $cwd = (Get-Location).Path
     $homePath = $HOME
-    if ($cwd -like ($homePath + '*')) {{
+    if ($homePath -and ($cwd -eq $homePath -or $cwd.StartsWith($homePath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or $cwd.StartsWith($homePath + [IO.Path]::AltDirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase))) {{
         $cwd = '~' + $cwd.Substring($homePath.Length)
     }}
-    return "{path_color}$cwd{reset}"
+    return $cwd
 }}
 
 function Get-WinZshGitSegment {{
@@ -103,12 +135,12 @@ function Get-WinZshGitSegment {{
         $porcelain = & git status --porcelain 2>$null
         $isDirty = -not [string]::IsNullOrWhiteSpace(($porcelain | Out-String))
         if ($isDirty) {{
-            return " {git_dirty}$branch{dirty_sym}{reset}"
+            return "$branch{dirty_sym}"
         }}
         if ('{clean_sym}') {{
-            return " {git_clean}$branch{clean_sym}{reset}"
+            return "$branch{clean_sym}"
         }}
-        return " {git_clean}$branch{reset}"
+        return "$branch"
     }} catch {{
         return ''
     }} finally {{
@@ -120,13 +152,17 @@ function Get-WinZshGitSegment {{
 }}
 
 function prompt {{
+    # Global activation: another terminal's `exit` clears locks/shell.active.
+    if ($global:__WinZshActiveLock -and -not (Test-Path -LiteralPath $global:__WinZshActiveLock)) {{
+        Write-Host 'WinZSH deactivated in another terminal — returning to stock PowerShell.' -ForegroundColor Yellow
+        exit 0
+    }}
     $pathSeg = Get-WinZshPathSegment
     $gitSeg = Get-WinZshGitSegment
     if (Get-Command Write-WinZshHistoryFromPrompt -ErrorAction SilentlyContinue) {{
         Write-WinZshHistoryFromPrompt
     }}
     # Teach zoxide about the current directory (zoxide cannot wrap our module-exported prompt).
-    # Use Get-Variable — StrictMode throws on reading an unset $global:WinZshZoxidePath.
     try {{
         $zoxideExe = Get-Variable -Name WinZshZoxidePath -Scope Global -ValueOnly -ErrorAction SilentlyContinue
         if (-not $zoxideExe) {{
@@ -138,7 +174,17 @@ function prompt {{
             if ($cwd) {{ $null = & $zoxideExe add -- $cwd }}
         }}
     }} catch {{ }}
-    return "$pathSeg$gitSeg`n{prompt_color}{prompt_sym}{reset} "
+
+    # Paint with Write-Host so Cursor/Windows Terminal always show colors (PSStyle-in-return is flaky).
+    Write-Host -NoNewline -ForegroundColor $script:WinZshPathColor $pathSeg
+    if ($gitSeg) {{
+        Write-Host -NoNewline -ForegroundColor DarkGray ' on '
+        $gitColor = if ($gitSeg.EndsWith('*') -or $gitSeg.EndsWith('{dirty_sym}')) {{ $script:WinZshGitDirtyColor }} else {{ $script:WinZshGitCleanColor }}
+        Write-Host -NoNewline -ForegroundColor $gitColor $gitSeg
+    }}
+    Write-Host ''
+    Write-Host -NoNewline -ForegroundColor $script:WinZshPromptColor $script:WinZshPromptSymbol
+    return ' '
 }}
 "#
     )
@@ -154,7 +200,11 @@ mod tests {
         let theme = resolve("modern").expect("theme").theme;
         let ps = render_powershell(&theme, &PromptPlan::default());
         assert!(ps.contains("function prompt"));
+        assert!(ps.contains("__WinZshActiveLock"));
+        assert!(ps.contains("Get-WinZshPathSegment"));
         assert!(ps.contains("Get-WinZshGitSegment"));
+        assert!(ps.contains("Write-Host -NoNewline"));
+        assert!(ps.contains(" on "));
         assert!(ps.contains("add --"));
         assert!(ps.contains("WinZshZoxidePath"));
         assert!(ps.contains("Get-Variable"));

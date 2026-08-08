@@ -19,6 +19,10 @@ pub const HOME_ENV: &str = "WINZSH_HOME";
 /// Environment variable overriding the PowerShell profile path (tests / advanced use).
 pub const PROFILE_ENV: &str = "WINZSH_PROFILE_PATH";
 
+/// When set to `1`, the profile hook loads the WinZSH runtime (nested `zsh-for-win` session).
+/// Plain PowerShell stays stock unless this is set.
+pub const SHELL_ENV: &str = "WINZSH_SHELL";
+
 /// Update / release channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -126,6 +130,14 @@ impl WinzshPaths {
     /// Path to locks directory.
     pub fn locks_dir(&self) -> PathBuf {
         self.root.join("locks")
+    }
+
+    /// Global WinZSH shell-active lock (`locks/shell.active`).
+    ///
+    /// Created by `zsh-for-win`, removed when any nested session `exit`s so every
+    /// other PowerShell terminal drops back to stock.
+    pub fn shell_active_lock(&self) -> PathBuf {
+        self.locks_dir().join("shell.active")
     }
 
     /// Path to history directory.

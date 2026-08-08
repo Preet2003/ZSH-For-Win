@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
-use winzsh_core::WinzshPaths;
+use winzsh_core::{SHELL_ENV, WinzshPaths};
 use winzsh_error::{Result, profile};
 use winzsh_fs::{atomic_write, backup_file, ensure_dir, read_string};
 use winzsh_shell_host::{Capabilities, ShellHost};
@@ -33,19 +33,96 @@ impl PowerShellHost {
     }
 
     /// Render the managed hook block that loads the cached runtime module.
+    ///
+    /// Plain PowerShell only gets the `zsh-for-win` launcher. The full WinZSH
+    /// runtime loads when `{SHELL_ENV}=1` (set by that launcher for a nested session).
+    ///
+    /// A shared `locks/shell.active` file makes activation global: other stock
+    /// terminals auto-join at profile load or on idle (never from inside `prompt`,
+    /// which breaks ConPTY nesting). `exit` in any nested session clears the lock.
     pub fn render_hook(&self) -> String {
         let module = self.paths.runtime_module();
         let module_display = module.display();
+        let active_lock = self.paths.shell_active_lock();
+        let active_lock_display = active_lock.display();
         format!(
             r#"{PROFILE_BEGIN}
 # Managed by WinZSH — do not edit this block by hand.
-$__winzshModule = '{module_display}'
-if (Test-Path -LiteralPath $__winzshModule) {{
-    Import-Module -Name $__winzshModule -Force -ErrorAction Stop
-}} else {{
-    Write-Warning "WinZSH runtime module missing at $__winzshModule. Run 'winzsh doctor'."
+# Stock PowerShell stays normal. Run `zsh-for-win` to enter WinZSH everywhere;
+# `exit` in any WinZSH session returns every terminal to stock.
+$global:__WinZshActiveLock = '{active_lock_display}'
+function global:zsh-for-win {{
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$PwshArgs
+    )
+    if ($env:{SHELL_ENV} -eq '1') {{
+        Write-Host 'Already inside a WinZSH session.' -ForegroundColor Yellow
+        return
+    }}
+    $lockDir = Split-Path -Parent $global:__WinZshActiveLock
+    if (-not (Test-Path -LiteralPath $lockDir)) {{
+        New-Item -ItemType Directory -Path $lockDir -Force | Out-Null
+    }}
+    New-Item -ItemType File -Path $global:__WinZshActiveLock -Force | Out-Null
+    $prev = [System.Environment]::GetEnvironmentVariable('{SHELL_ENV}', 'Process')
+    [System.Environment]::SetEnvironmentVariable('{SHELL_ENV}', '1', 'Process')
+    try {{
+        $pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
+        if ($pwshCmd) {{
+            & $pwshCmd.Source -NoLogo @PwshArgs
+        }} else {{
+            & powershell -NoLogo @PwshArgs
+        }}
+    }} finally {{
+        Remove-Item -LiteralPath $global:__WinZshActiveLock -Force -ErrorAction SilentlyContinue
+        if ($null -eq $prev -or $prev -eq '') {{
+            Remove-Item -Path Env:{SHELL_ENV} -ErrorAction SilentlyContinue
+        }} else {{
+            [System.Environment]::SetEnvironmentVariable('{SHELL_ENV}', $prev, 'Process')
+        }}
+    }}
 }}
-Remove-Variable __winzshModule -ErrorAction SilentlyContinue
+function global:Enter-WinZshSessionIfActive {{
+    if ($env:{SHELL_ENV} -eq '1') {{ return }}
+    if ($global:__WinZshEntering) {{ return }}
+    if (-not (Test-Path -LiteralPath $global:__WinZshActiveLock)) {{ return }}
+    $global:__WinZshEntering = $true
+    try {{
+        Write-Host 'WinZSH is active — joining session. Type exit to deactivate everywhere.' -ForegroundColor Cyan
+        zsh-for-win
+    }} finally {{
+        $global:__WinZshEntering = $false
+    }}
+}}
+if ($env:{SHELL_ENV} -eq '1') {{
+    $__winzshModule = '{module_display}'
+    if (Test-Path -LiteralPath $__winzshModule) {{
+        Import-Module -Name $__winzshModule -Force -ErrorAction Stop
+        Write-Host ("WinZSH · " + (Get-WinZshInfo).Theme + " · type exit to deactivate everywhere") -ForegroundColor Magenta
+    }} else {{
+        Write-Warning "WinZSH runtime module missing at $__winzshModule. Run 'winzsh doctor'."
+    }}
+    Remove-Variable __winzshModule -ErrorAction SilentlyContinue
+}} else {{
+    # Stock session: keep PowerShell plain (PSReadLine history ghosts are native, not WinZSH).
+    if (Get-Module -ListAvailable -Name PSReadLine) {{
+        try {{
+            Set-PSReadLineOption -PredictionSource None -ErrorAction SilentlyContinue
+        }} catch {{ }}
+    }}
+    # Join at profile load (new tabs) or on idle (already-open tabs) — never inside prompt.
+    if (Test-Path -LiteralPath $global:__WinZshActiveLock) {{
+        Enter-WinZshSessionIfActive
+    }} else {{
+        Register-EngineEvent -SourceIdentifier PowerShell.OnIdle -Action {{
+            if ((Test-Path -LiteralPath $global:__WinZshActiveLock) -and ($env:{SHELL_ENV} -ne '1')) {{
+                Enter-WinZshSessionIfActive
+            }}
+        }} | Out-Null
+    }}
+}}
 {PROFILE_END}
 "#
         )
@@ -172,6 +249,12 @@ mod tests {
         let hook = host.render_hook();
         let with = upsert_hook_block("Write-Host hi\n", &hook).expect("upsert");
         assert!(with.contains(PROFILE_BEGIN));
+        assert!(with.contains("function global:zsh-for-win"));
+        assert!(with.contains("WINZSH_SHELL"));
+        assert!(with.contains("shell.active"));
+        assert!(with.contains("Enter-WinZshSessionIfActive"));
+        assert!(with.contains("PowerShell.OnIdle"));
+        assert!(!with.contains("__WinZshStockPrompt"));
         let gone = remove_hook_block(&with).expect("remove");
         assert!(!gone.contains(PROFILE_BEGIN));
         assert!(gone.contains("Write-Host hi"));

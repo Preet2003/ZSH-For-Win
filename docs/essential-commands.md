@@ -19,15 +19,49 @@ Update this file when new CLI commands, flags, or workflows ship.
 
 ## First-time setup (from source)
 
+**Recommended** (build + PATH + profile in one step):
+
 ```powershell
 cd zsh-for-win
-cargo build -p winzsh
-cargo run -p winzsh -- install
-cargo run -p winzsh -- theme set modern
-cargo run -p winzsh -- doctor
+Set-ExecutionPolicy -Scope Process Bypass
+./scripts/install-from-source.ps1
 ```
 
-Then **restart PowerShell** (or open a new tab) so the profile hook loads.
+Manual equivalent:
+
+```powershell
+cd zsh-for-win
+cargo build -p winzsh --release
+# copy target\release\winzsh.exe to ~/.winzsh/bin and put that on PATH, then:
+winzsh install
+winzsh theme set modern
+winzsh doctor
+```
+
+Then open a **new PowerShell tab**. Stock PowerShell stays normal. Activate WinZSH with:
+
+```powershell
+zsh-for-win
+# ... use WinZSH (prompt, aliases, completions, …) ...
+exit    # deactivates WinZSH in EVERY PowerShell terminal
+```
+
+### Global activation (all terminals)
+
+| Action | Effect |
+|--------|--------|
+| `zsh-for-win` in any stock terminal | Creates `~/.winzsh/locks/shell.active` and enters a WinZSH nested session |
+| Other open stock terminals | On their **next prompt**, auto-join the same WinZSH mode |
+| New PowerShell tabs while active | Auto-join on first prompt |
+| `exit` in **any** WinZSH session | Clears the lock → every WinZSH session returns to stock |
+
+Lock file: `~/.winzsh/locks/shell.active` (removed on deactivate).
+
+After changing the profile hook, re-run install and open fresh tabs:
+
+```powershell
+cargo run -p winzsh -- install
+```
 
 ### Autosuggestions (Phase 3)
 
