@@ -24,8 +24,9 @@ winzsh
                               └─ winzsh-plugin
 
 winzsh-registry → winzsh-plugin
-winzsh-ai       → winzsh-core (+ optional HTTP)
-winzsh-sync     → winzsh-history
+winzsh-ai       → winzsh-core (local only; no HTTP)
+winzsh-sync     → winzsh-history, winzsh-config, winzsh-plugin (+ optional HTTPS pull)
+winzsh-agent    → winzsh-history, winzsh-registry, winzsh-update, winzsh-config
 ```
 
 Foundation crates (`winzsh-error`, `winzsh-core`, `winzsh-fs`, `winzsh-log`, `winzsh-config`)
@@ -35,15 +36,14 @@ sit at the bottom. Engines sit in the middle. CLI/installer sit at the top.
 
 1. **Acyclic graph.** Cycles fail CI.
 2. **No engine → CLI** dependencies.
-3. **Network only** in `winzsh-registry`, `winzsh-update`, `winzsh-ai` (later `winzsh-sync`).
+3. **Network only** in `winzsh-registry`, `winzsh-update`, `winzsh-sync` (HTTPS pull), and `winzsh-agent` (via those crates).
 4. **PowerShell string templates only** in `winzsh-powershell`, `winzsh-runtime-gen`, and
    `runtime/powershell/`.
-5. **`winzsh-sync` is not wired into CLI command paths** until that phase ships.
-6. Prefer `std` + small deps. Staples: `serde`, `toml`, `thiserror`, `miette`, `tracing`,
+5. Prefer `std` + small deps. Staples: `serde`, `toml`, `thiserror`, `miette`, `tracing`,
    `clap`, `dirs`, `time`. `tokio` only where async IO is real. HTTP clients only in network crates.
    SQLite only behind history.
-7. **`#![forbid(unsafe_code)]`** on all crates by default. Opt-out requires an ADR.
-8. Binary crate `winzsh` depends **only** on `winzsh-cli` (plus workspace-indirect graph).
+6. **`#![forbid(unsafe_code)]`** on all crates by default. Opt-out requires an ADR.
+7. Binary crate `winzsh` depends **only** on `winzsh-cli` (plus workspace-indirect graph).
 
 ## Allowed foundation edges
 

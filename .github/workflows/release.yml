@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version without v prefix (e.g. 0.1.0). Defaults to Cargo.toml / tag."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: package + publish
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.event.inputs.version }}"
+          if (-not $v -and $env:GITHUB_REF_TYPE -eq "tag") {
+            $v = $env:GITHUB_REF_NAME.TrimStart("v")
+          }
+          if (-not $v) {
+            $cargo = Get-Content Cargo.toml -Raw
+            if ($cargo -match '(?ms)\[workspace\.package\].*?^version\s*=\s*"([^"]+)"') {
+              $v = $Matches[1]
+            }
+          }
+          if (-not $v) { throw "Could not resolve version" }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Version: $v"
+
+      - name: Package artifacts
+        shell: pwsh
+        run: ./scripts/release/package.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Fill winget manifests
+        shell: pwsh
+        run: ./scripts/release/fill-winget-manifest.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: winzsh-windows-x64
+          path: |
+            dist/*
+            packaging/winget/WinZSH.WinZSH/*
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: WinZSH ${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/WinZSH-Setup-x86_64.exe
+            dist/winzsh-x86_64-pc-windows-msvc.exe
+            dist/winzsh-v${{ steps.ver.outputs.version }}-x86_64-pc-windows-msvc.zip
+            dist/SHA256SUMS.txt
+          body: |
+            ## Install (recommended)
+
+            1. Download **WinZSH-Setup-x86_64.exe**
+            2. Double-click / run it
+            3. Open a **new** PowerShell tab
+            4. Run `zsh-for-win`
+
+            Silent: `WinZSH-Setup-x86_64.exe setup -y`
+
+            ## winget (after community publish)
+
+            ```powershell
+            winget install --id WinZSH.WinZSH -e
+            ```
+
+            ## Upgrade
+
+            - Run a newer Setup.exe, or `winzsh update`, or `winget upgrade WinZSH.WinZSH`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -58,14 +58,16 @@ winzsh plugin add <name|path>
   → runtime-gen rebuild
 ```
 
-Commands: `add`, `remove`, `enable`, `disable`, `list`, `update` (registry phase).
+Commands: `add`, `remove`, `enable`, `disable`, `list`, `search`, `info`, `update`.
 
 ## Trust model
 
-1. **First-party** (in-repo / signed by WinZSH release key) — default trusted.
-2. **Registry** — checksum + signature required; updates follow channel policy.
+1. **First-party** (in-repo / embedded) — default trusted.
+2. **Registry** — SHA-256 required; signature optional until `[registry].require_signature = true`.
 3. **Local path** — `winzsh plugin add ./path` with an explicit warning.
 4. **No arbitrary native code** in V1.
+
+See [`REGISTRY-GATE.md`](REGISTRY-GATE.md) and [`../../registry/README.md`](../../registry/README.md).
 
 ## Failure isolation
 

@@ -86,6 +86,24 @@ Write-Host "==> Running winzsh install" -ForegroundColor Cyan
 & $dest install --force
 & $dest theme set modern
 
+# Remember checkout so `winzsh update --from-source` works without a path.
+$cfgPath = Join-Path $env:USERPROFILE ".winzsh\config.toml"
+if (Test-Path -LiteralPath $cfgPath) {
+    $rootFwd = ($RepoRoot.Path -replace '\\', '/')
+    $c = Get-Content -LiteralPath $cfgPath -Raw
+    if ($c -match 'source_dir\s*=\s*""') {
+        $c = $c -replace 'source_dir\s*=\s*""', "source_dir = `"$rootFwd`""
+        Set-Content -LiteralPath $cfgPath -Value $c -NoNewline
+        Write-Host "    Configured [update].source_dir = $rootFwd"
+    } elseif ($c -notmatch 'source_dir\s*=\s*"[^"]+"') {
+        if ($c -match '\[update\]') {
+            $c = $c -replace '(\[update\])', "`$1`nsource_dir = `"$rootFwd`""
+            Set-Content -LiteralPath $cfgPath -Value $c -NoNewline
+            Write-Host "    Configured [update].source_dir = $rootFwd"
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "WinZSH is ready." -ForegroundColor Green
 Write-Host @"
@@ -97,6 +115,9 @@ Next steps:
   4. Try:   Get-WinZshInfo
             gs
   5. Run:   exit     (back to stock PowerShell)
+
+Later updates (no re-clone ritual):
+  winzsh update --from-source --pull
 
 Optional extras:
   winzsh plugin add docker

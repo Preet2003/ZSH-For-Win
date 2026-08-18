@@ -1,0 +1,9 @@
+name = "demo-aliases"
+version = "0.1.0"
+description = "Sample community plugin with handy filesystem shortcuts"
+engines.winzsh = ">=0.1.0"
+commands = []
+aliases = { mkcd = "New-Item -ItemType Directory -Force", la = "Get-ChildItem -Force", up = "Set-Location ..", up2 = "Set-Location ../.." }
+completions = []
+hooks = []
+themes = []

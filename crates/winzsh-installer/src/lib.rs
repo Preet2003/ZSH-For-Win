@@ -3,14 +3,15 @@
 #![forbid(unsafe_code)]
 
 use serde::Serialize;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use tracing::info;
 use winzsh_config::{self as config, Config};
 use winzsh_core::{State, VERSION, WinzshPaths};
 use winzsh_detect::{DetectionReport, detect_environment};
 use winzsh_doctor::{self as doctor, DoctorReport};
-use winzsh_error::Result;
-use winzsh_fs::{atomic_write, ensure_layout};
+use winzsh_error::{Result, message};
+use winzsh_fs::{atomic_write, ensure_dir, ensure_layout};
 use winzsh_powershell::PowerShellHost;
 use winzsh_runtime_gen::{self as runtime_gen, GenerateReport};
 use winzsh_shell_host::ShellHost;
@@ -32,6 +33,24 @@ impl Default for InstallOptions {
             force: false,
             profile_path: None,
             require_powershell: true,
+        }
+    }
+}
+
+/// Options for [`self_install`] (download-and-run Setup.exe flow).
+#[derive(Debug, Clone)]
+pub struct SelfInstallOptions {
+    /// Theme id applied after install (default `modern`).
+    pub theme: String,
+    /// Skip theme mutation.
+    pub skip_theme: bool,
+}
+
+impl Default for SelfInstallOptions {
+    fn default() -> Self {
+        Self {
+            theme: "modern".into(),
+            skip_theme: false,
         }
     }
 }
@@ -64,6 +83,155 @@ impl InstallReport {
         info!("{msg}");
         self.steps.push(msg);
     }
+}
+
+/// Full "download the .exe and run it" install:
+/// copy this binary into `~/.winzsh/bin`, add user PATH, write launcher,
+/// then profile hook + runtime (+ optional theme).
+pub fn self_install(paths: &WinzshPaths, opts: SelfInstallOptions) -> Result<InstallReport> {
+    let env = detect_environment()?;
+    self_install_with_detection(paths, opts, &env)
+}
+
+/// [`self_install`] with injected detection (tests).
+pub fn self_install_with_detection(
+    paths: &WinzshPaths,
+    opts: SelfInstallOptions,
+    env: &DetectionReport,
+) -> Result<InstallReport> {
+    let mut report = InstallReport {
+        home: paths.root.display().to_string(),
+        ..InstallReport::default()
+    };
+
+    ensure_dir(&paths.bin_dir())?;
+    let dest = paths.cli_binary();
+    let src = std::env::current_exe().map_err(|e| message(format!("current_exe: {e}")))?;
+    if same_file(&src, &dest) {
+        report.step(format!("CLI already at {}", dest.display()));
+    } else {
+        fs::copy(&src, &dest).map_err(|source| winzsh_error::io(dest.clone(), source))?;
+        report.step(format!("installed CLI to {}", dest.display()));
+    }
+
+    write_launcher(paths)?;
+    report.step(format!(
+        "wrote launcher {}",
+        paths.bin_dir().join("zsh-for-win.cmd").display()
+    ));
+
+    if ensure_user_path(&paths.bin_dir())? {
+        report.step(format!("added {} to user PATH", paths.bin_dir().display()));
+    } else {
+        report.step(format!(
+            "user PATH already contains {}",
+            paths.bin_dir().display()
+        ));
+    }
+
+    let install_report = install_with_detection(
+        paths,
+        InstallOptions {
+            force: true,
+            require_powershell: true,
+            ..InstallOptions::default()
+        },
+        env,
+    )?;
+    report.profile_path = install_report.profile_path;
+    report.runtime_wrote = install_report.runtime_wrote;
+    report.steps.extend(install_report.steps);
+
+    if !opts.skip_theme {
+        winzsh_theme::validate_id(&opts.theme)?;
+        let mut cfg = config::load(paths)?;
+        cfg.theme = opts.theme.clone();
+        config::save(paths, &cfg)?;
+        let runtime = regenerate_runtime(paths, &cfg)?;
+        report.runtime_wrote = runtime.wrote || report.runtime_wrote;
+        report.step(format!("theme set to {}", opts.theme));
+    }
+
+    report.step(format!("WinZSH {VERSION} ready"));
+    Ok(report)
+}
+
+fn same_file(a: &Path, b: &Path) -> bool {
+    match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
+}
+
+fn write_launcher(paths: &WinzshPaths) -> Result<()> {
+    let launcher = paths.bin_dir().join("zsh-for-win.cmd");
+    let contents = concat!(
+        "@echo off\r\n",
+        "REM Nested WinZSH session. Type \"exit\" to return.\r\n",
+        "set WINZSH_SHELL=1\r\n",
+        "where pwsh >nul 2>&1\r\n",
+        "if errorlevel 1 (\r\n",
+        "  powershell %*\r\n",
+        "  exit /b %ERRORLEVEL%\r\n",
+        ")\r\n",
+        "pwsh %*\r\n",
+    );
+    atomic_write(&launcher, contents)?;
+    Ok(())
+}
+
+/// Ensure `dir` is on the current user's persistent PATH. Returns true if modified.
+pub fn ensure_user_path(dir: &Path) -> Result<bool> {
+    #[cfg(windows)]
+    {
+        ensure_user_path_windows(dir)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = dir;
+        Ok(false)
+    }
+}
+
+#[cfg(windows)]
+fn ensure_user_path_windows(dir: &Path) -> Result<bool> {
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
+    use winreg::RegKey;
+
+    let dir_display = dir.display().to_string();
+    let dir_canon = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let env = hkcu
+        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
+        .map_err(|e| message(format!("open HKCU\\Environment: {e}")))?;
+    let current: String = env.get_value("Path").unwrap_or_default();
+    let parts: Vec<&str> = current
+        .split(';')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    let already = parts.iter().any(|p| {
+        let candidate = Path::new(p);
+        candidate
+            .canonicalize()
+            .map(|c| c == dir_canon)
+            .unwrap_or(false)
+            || p.eq_ignore_ascii_case(&dir_display)
+    });
+    if already {
+        return Ok(false);
+    }
+    let new_path = if current.trim().is_empty() {
+        dir_display
+    } else if current.ends_with(';') {
+        format!("{current}{dir_display}")
+    } else {
+        format!("{current};{dir_display}")
+    };
+    env.set_value("Path", &new_path)
+        .map_err(|e| message(format!("set user PATH: {e}")))?;
+    Ok(true)
 }
 
 /// Install or repair WinZSH for the current user.
@@ -232,6 +400,7 @@ mod tests {
             zoxide: None,
             profile_path: Some(profile.clone()),
             commands: vec![],
+            ..DetectionReport::default()
         };
         let report = install_with_detection(
             &home.paths,
@@ -287,6 +456,7 @@ mod tests {
             zoxide: None,
             profile_path: Some(profile.clone()),
             commands: vec!["powershell".into()],
+            ..DetectionReport::default()
         };
         let report = install_with_detection(
             &home.paths,

@@ -1,0 +1,34 @@
+﻿# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: WinZSH.WinZSH
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: WinZSH
+PublisherUrl: https://github.com/winzsh/winzsh
+PublisherSupportUrl: https://github.com/winzsh/winzsh/issues
+Author: WinZSH Contributors
+PackageName: WinZSH
+PackageUrl: https://github.com/winzsh/winzsh
+License: MIT OR Apache-2.0
+LicenseUrl: https://github.com/winzsh/winzsh/blob/main/LICENSE
+Copyright: Copyright (c) WinZSH Contributors
+ShortDescription: Oh My Zsh-style developer experience for Windows PowerShell
+Description: |-
+  WinZSH is a Windows developer experience layer for PowerShell (not a new shell).
+
+  Install by downloading WinZSH-Setup-x86_64.exe from GitHub Releases and running it,
+  or via winget. Setup copies winzsh to your user profile, adds PATH, and wires the
+  PowerShell profile hook.
+
+  After setup, open a new PowerShell tab and run:
+    zsh-for-win
+Moniker: winzsh
+Tags:
+  - powershell
+  - shell
+  - oh-my-zsh
+  - prompt
+  - developer-tools
+  - cli
+ReleaseNotesUrl: https://github.com/winzsh/winzsh/releases
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

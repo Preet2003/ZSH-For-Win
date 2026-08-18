@@ -43,6 +43,18 @@ pub struct Config {
     /// AI helper preferences (Phase 6).
     #[serde(default)]
     pub ai: AiConfig,
+    /// Plugin registry preferences.
+    #[serde(default)]
+    pub registry: RegistryConfig,
+    /// Settings sync preferences.
+    #[serde(default)]
+    pub sync: SyncConfig,
+    /// Background agent preferences.
+    #[serde(default)]
+    pub agent: AgentConfig,
+    /// Opt-in extra shells (beyond PowerShell).
+    #[serde(default)]
+    pub shells: ShellsConfig,
     /// Update preferences.
     #[serde(default)]
     pub update: UpdateConfig,
@@ -68,6 +80,10 @@ impl Default for Config {
             completions: CompletionsConfig::default(),
             plugins: PluginsConfig::default(),
             ai: AiConfig::default(),
+            registry: RegistryConfig::default(),
+            sync: SyncConfig::default(),
+            agent: AgentConfig::default(),
+            shells: ShellsConfig::default(),
             update: UpdateConfig::default(),
             telemetry: TelemetryConfig::default(),
         }
@@ -202,40 +218,106 @@ pub struct PluginsConfig {
     pub enabled: Vec<String>,
 }
 
-/// AI provider configuration (master switch is `features.ai`).
+/// AI configuration (master switch is `features.ai`). Local heuristics only.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiConfig {
-    /// `local` (offline) or `openai` (OpenAI-compatible HTTP).
+    /// Always `local` (offline heuristics). Other values are rejected.
     #[serde(default = "default_ai_provider")]
     pub provider: String,
-    /// Model id for cloud provider.
-    #[serde(default = "default_ai_model")]
-    pub model: String,
-    /// API base URL for OpenAI-compatible endpoints.
-    #[serde(default = "default_ai_base")]
-    pub api_base: String,
 }
 
 fn default_ai_provider() -> String {
     "local".into()
 }
 
-fn default_ai_model() -> String {
-    "gpt-4o-mini".into()
-}
-
-fn default_ai_base() -> String {
-    "https://api.openai.com/v1".into()
-}
-
 impl Default for AiConfig {
     fn default() -> Self {
         Self {
             provider: default_ai_provider(),
-            model: default_ai_model(),
-            api_base: default_ai_base(),
         }
     }
+}
+
+fn default_registry_url() -> String {
+    "https://raw.githubusercontent.com/winzsh/winzsh/main/registry/index.json".into()
+}
+
+/// Remote plugin registry settings.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RegistryConfig {
+    /// Index URL (`https://…/index.json` or `file:///…/index.json`).
+    #[serde(default = "default_registry_url")]
+    pub url: String,
+    /// When true, refuse registry installs that lack a signature field.
+    #[serde(default)]
+    pub require_signature: bool,
+}
+
+impl Default for RegistryConfig {
+    fn default() -> Self {
+        Self {
+            url: default_registry_url(),
+            require_signature: false,
+        }
+    }
+}
+
+/// Cross-machine settings sync.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct SyncConfig {
+    /// Bundle destination: local `.json` path, directory, or `https://` URL (pull only).
+    #[serde(default)]
+    pub destination: String,
+    /// Include installed plugin trees when exporting / pushing.
+    #[serde(default)]
+    pub include_plugins: bool,
+    /// Include command history when exporting / pushing.
+    #[serde(default)]
+    pub include_history: bool,
+}
+
+/// Background maintenance agent.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AgentConfig {
+    /// Run maintenance ticks automatically when started.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Seconds between ticks (default 900 = 15m).
+    #[serde(default = "default_agent_interval")]
+    pub interval_secs: u64,
+    /// Compact history spool on each tick.
+    #[serde(default = "default_true")]
+    pub compact_history: bool,
+    /// Refresh plugin registry index cache on each tick.
+    #[serde(default = "default_true")]
+    pub refresh_registry: bool,
+    /// Check for CLI updates on each tick (writes nudge metadata only).
+    #[serde(default)]
+    pub check_updates: bool,
+}
+
+fn default_agent_interval() -> u64 {
+    900
+}
+
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            interval_secs: default_agent_interval(),
+            compact_history: true,
+            refresh_registry: true,
+            check_updates: false,
+        }
+    }
+}
+
+/// Opt-in multi-shell integrations.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct ShellsConfig {
+    /// Extra shell ids with managed hooks (`cmd`, `nu`, `bash`). PowerShell is always primary.
+    #[serde(default)]
+    pub enabled: Vec<String>,
 }
 
 /// Update-related configuration.
@@ -247,6 +329,12 @@ pub struct UpdateConfig {
     /// Whether to check for updates on start.
     #[serde(default = "default_true")]
     pub check_on_start: bool,
+    /// GitHub `owner/repo` for Releases self-update (empty = GitHub updates disabled).
+    #[serde(default)]
+    pub github_repo: String,
+    /// Optional local git checkout used by `winzsh update --from-source`.
+    #[serde(default)]
+    pub source_dir: String,
 }
 
 impl Default for UpdateConfig {
@@ -254,6 +342,8 @@ impl Default for UpdateConfig {
         Self {
             channel: Channel::Stable,
             check_on_start: true,
+            github_repo: String::new(),
+            source_dir: String::new(),
         }
     }
 }
@@ -289,16 +379,10 @@ pub fn validate(cfg: &Config) -> Result<()> {
         return Err(config("prompt.budget_ms must be >= 1"));
     }
     let provider = cfg.ai.provider.trim().to_ascii_lowercase();
-    if provider != "local" && provider != "openai" {
+    if provider != "local" {
         return Err(config(
-            "ai.provider must be \"local\" or \"openai\"",
+            "ai.provider must be \"local\" (cloud AI is not supported)",
         ));
-    }
-    if cfg.ai.model.trim().is_empty() {
-        return Err(config("ai.model must not be empty"));
-    }
-    if cfg.ai.api_base.trim().is_empty() {
-        return Err(config("ai.api_base must not be empty"));
     }
     Ok(())
 }
@@ -307,6 +391,10 @@ pub fn validate(cfg: &Config) -> Result<()> {
 pub fn migrate(mut cfg: Config) -> Result<Config> {
     if cfg.schema_version == 0 {
         cfg.schema_version = 1;
+    }
+    // Cloud AI removed — coerce legacy provider values to local.
+    if !cfg.ai.provider.eq_ignore_ascii_case("local") {
+        cfg.ai.provider = "local".into();
     }
     while cfg.schema_version < SCHEMA_VERSION {
         cfg.schema_version += 1;

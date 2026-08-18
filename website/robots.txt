@@ -1,0 +1,4 @@
+﻿User-agent: *
+Allow: /
+
+Sitemap: https://preet2003.github.io/ZSH-For-Win/sitemap.xml

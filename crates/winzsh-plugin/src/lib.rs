@@ -311,11 +311,17 @@ pub fn add_first_party(paths: &WinzshPaths, id: &str) -> Result<PluginManifest> 
     }
     let manifest = load(paths, id)?.manifest;
     info!(plugin = id, path = %dest.display(), "installed first-party plugin");
+    let _ = write_origin(paths, id, "first-party", &manifest.version, None);
     Ok(manifest)
 }
 
 /// Install a plugin from a local directory containing `plugin.toml`.
 pub fn add_from_path(paths: &WinzshPaths, src: &Path) -> Result<PluginManifest> {
+    install_from_dir(paths, src, false)
+}
+
+/// Install (or replace) a plugin tree from a directory that contains `plugin.toml`.
+pub fn install_from_dir(paths: &WinzshPaths, src: &Path, overwrite: bool) -> Result<PluginManifest> {
     let src = src
         .canonicalize()
         .map_err(|source| winzsh_error::io(src.to_path_buf(), source))?;
@@ -330,19 +336,59 @@ pub fn add_from_path(paths: &WinzshPaths, src: &Path) -> Result<PluginManifest> 
     let manifest = parse_manifest(&raw)?;
     let dest = paths.plugins_dir().join(&manifest.name);
     if dest.join("plugin.toml").is_file() {
-        return Err(message(format!(
-            "plugin '{}' is already installed at {}",
-            manifest.name,
-            dest.display()
-        )));
+        if !overwrite {
+            return Err(message(format!(
+                "plugin '{}' is already installed at {}",
+                manifest.name,
+                dest.display()
+            )));
+        }
+        fs::remove_dir_all(&dest).map_err(|source| winzsh_error::io(dest.clone(), source))?;
     }
     copy_dir(&src, &dest)?;
     info!(
         plugin = %manifest.name,
         from = %src.display(),
-        "installed plugin from local path"
+        overwrite,
+        "installed plugin from directory"
     );
+    if !overwrite {
+        let _ = write_origin(paths, &manifest.name, "local", &manifest.version, None);
+    }
     Ok(manifest)
+}
+
+/// Write provenance metadata next to an installed plugin.
+pub fn write_origin(
+    paths: &WinzshPaths,
+    id: &str,
+    source: &str,
+    version: &str,
+    sha256: Option<&str>,
+) -> Result<()> {
+    let dest = paths.plugins_dir().join(id).join(".winzsh-origin.toml");
+    let mut body = format!(
+        "source = \"{source}\"\nversion = \"{version}\"\ninstalled_by = \"winzsh\"\n"
+    );
+    if let Some(hash) = sha256 {
+        body.push_str(&format!("sha256 = \"{hash}\"\n"));
+    }
+    winzsh_fs::atomic_write(&dest, body)?;
+    Ok(())
+}
+
+/// Read provenance source label if present (`registry`, `first-party`, `local`).
+pub fn read_origin_source(paths: &WinzshPaths, id: &str) -> Option<String> {
+    let path = paths.plugins_dir().join(id).join(".winzsh-origin.toml");
+    let raw = read_string(&path).ok()?;
+    for line in raw.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("source") {
+            let rest = rest.trim().trim_start_matches('=').trim();
+            return Some(rest.trim_matches('"').to_string());
+        }
+    }
+    None
 }
 
 /// Remove an installed plugin directory (does not edit config).

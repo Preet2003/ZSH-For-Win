@@ -26,8 +26,8 @@ Windows Terminal → PowerShell 7 → Managed Profile Hook → WinZSH.psm1 (cach
                               GitHub Releases / winget / plugin registry
 ```
 
-Optional `winzsh-agent` (Phase 5+) may later handle history indexing, sync, and AI.
-It is absent in V1.
+Optional background maintenance runs as `winzsh agent` (same user-facing binary).
+It can compact history, refresh the plugin registry cache, and optionally check for updates.
 
 ## Runtime split
 
@@ -37,7 +37,7 @@ It is absent in V1.
 | Autosuggest / syntax | interactive keystroke | PSReadLine handlers in runtime module |
 | Completions | interactive Tab | Lazy-loaded completion scripts |
 | `winzsh` CLI | human-scale | Rust binary |
-| Background sync / AI | async | Optional agent later |
+| Background maintenance | async | `winzsh agent` (same binary) |
 
 **Rule:** The Rust binary must never be required on the prompt hot path.
 Rust compiles/materializes the runtime; PowerShell executes it.
@@ -60,8 +60,11 @@ Rust compiles/materializes the runtime; PowerShell executes it.
   history/
     history.db               # or spool/ + compacted db
   locks/
+    shell.active
+    agent.pid
+    agent.heartbeat.json
+    agent.stop
 ```
-
 ## Managed profile hook
 
 Installer owns create/update/remove of a single marked block:

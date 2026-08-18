@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-18T00:00:00Z",
+  "plugins": [
+    {
+      "id": "demo-aliases",
+      "version": "0.1.0",
+      "description": "Sample community plugin with handy filesystem shortcuts",
+      "author": "WinZSH Contributors",
+      "tags": ["community", "demo"],
+      "download_url": "embedded:demo-aliases",
+      "sha256": "8acf896a38c1d78c0afb8b0c313e1dabde2b07abe5798c82180378b17a531b67",
+      "signature": null,
+      "homepage": "https://github.com/winzsh/winzsh/tree/main/registry/plugins/demo-aliases",
+      "package": "packages/demo-aliases-0.1.0.zip"
+    }
+  ]
+}

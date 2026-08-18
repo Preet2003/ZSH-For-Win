@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/winzsh",
+    "crates/winzsh-agent",
     "crates/winzsh-ai",
     "crates/winzsh-alias",
     "crates/winzsh-cli",
@@ -40,6 +41,7 @@ description = "Oh My Zsh–style developer experience layer for Windows shells"
 
 [workspace.dependencies]
 # Internal crates
+winzsh-agent = { path = "crates/winzsh-agent" }
 winzsh-ai = { path = "crates/winzsh-ai" }
 winzsh-alias = { path = "crates/winzsh-alias" }
 winzsh-cli = { path = "crates/winzsh-cli" }
@@ -81,6 +83,8 @@ uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = "0.10"
 hex = "0.4"
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+winreg = "0.55"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

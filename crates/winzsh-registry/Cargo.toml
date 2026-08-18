@@ -13,6 +13,17 @@ winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
 winzsh-fs = { workspace = true }
 winzsh-plugin = { workspace = true }
+winzsh-config = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+tracing = { workspace = true }
+ureq = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+winzsh-test-support = { workspace = true }
 
 [lints]
 workspace = true

@@ -6,11 +6,14 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-description = "WinZSH shell host trait and capability model"
+description = "WinZSH shell host trait and multi-shell adapters"
 
 [dependencies]
 winzsh-core = { workspace = true }
 winzsh-error = { workspace = true }
+winzsh-fs = { workspace = true }
+serde = { workspace = true }
+dirs = { workspace = true }
 
 [lints]
 workspace = true

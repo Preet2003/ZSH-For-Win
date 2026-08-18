@@ -3,7 +3,6 @@
 #![forbid(unsafe_code)]
 
 use serde::Serialize;
-use winzsh_ai::{self as ai};
 use winzsh_completion::{self as completion, CompletionPolicy};
 use winzsh_config::{self as config};
 use winzsh_core::WinzshPaths;
@@ -241,23 +240,13 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
         }
 
         if cfg.features.ai {
-            let key = ai::api_key_from_env().is_some();
             diagnostics.push(Diagnostic::info(
                 "ai.enabled",
                 format!(
-                    "AI enabled (provider={}, model={}, api_key={})",
-                    cfg.ai.provider,
-                    cfg.ai.model,
-                    if key { "present" } else { "absent" }
+                    "AI enabled (provider={}, local offline heuristics)",
+                    cfg.ai.provider
                 ),
             ));
-            if cfg.ai.provider.eq_ignore_ascii_case("openai") && !key {
-                diagnostics.push(Diagnostic::warning(
-                    "ai.key_missing",
-                    "ai.provider=openai but no WINZSH_AI_API_KEY / OPENAI_API_KEY",
-                    "Set a key, or set ai.provider=\"local\" for offline heuristics",
-                ));
-            }
         } else {
             diagnostics.push(Diagnostic::info(
                 "ai.disabled",
@@ -265,19 +254,47 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
             ));
         }
 
+        let has_github = !cfg.update.github_repo.trim().is_empty();
+        let has_source = !cfg.update.source_dir.trim().is_empty()
+            || std::env::var("WINZSH_SOURCE").map(|v| !v.trim().is_empty()).unwrap_or(false);
+        if has_github {
+            diagnostics.push(Diagnostic::info(
+                "update.github",
+                format!(
+                    "GitHub self-update configured (repo={}, channel={:?})",
+                    cfg.update.github_repo, cfg.update.channel
+                ),
+            ));
+        } else if has_source {
+            diagnostics.push(Diagnostic::info(
+                "update.from_source",
+                "Source self-update available — `winzsh update --from-source [--pull]`",
+            ));
+        } else {
+            diagnostics.push(Diagnostic::info(
+                "update.hint",
+                "No update source configured — set [update].source_dir or github_repo, or run `winzsh update --from-source <path>`",
+            ));
+        }
+
         if cfg.plugins.enabled.is_empty() {
             diagnostics.push(Diagnostic::info(
                 "plugins.none",
-                "no plugins enabled (try `winzsh plugin add docker`)",
+                "no plugins enabled (try `winzsh plugin add docker` or `winzsh plugin search`)",
             ));
         } else {
             for id in &cfg.plugins.enabled {
                 match plugin::load(paths, id) {
                     Ok(p) => {
+                        let origin = plugin::read_origin_source(paths, id)
+                            .unwrap_or_else(|| "unknown".into());
                         if plugin::commands_ok(&p.manifest, &env) {
                             diagnostics.push(Diagnostic::info(
                                 "plugins.enabled",
-                                format!("plugin '{id}' v{} active", p.manifest.version),
+                                format!(
+                                    "plugin '{id}' v{} active (origin={origin})",
+                                    p.manifest.version
+                                ),
                             ));
                         } else {
                             diagnostics.push(Diagnostic::warning(

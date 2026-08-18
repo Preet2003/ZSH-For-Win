@@ -1,7 +1,7 @@
 # Crate Map
 
 Workspace members are library crates plus one binary (`winzsh`).
-No other crate defines `[[bin]]` except a future optional `winzsh-agent`.
+Background maintenance runs as `winzsh agent` (same binary; library crate `winzsh-agent`).
 
 ## Foundation
 
@@ -24,12 +24,13 @@ No other crate defines `[[bin]]` except a future optional `winzsh-agent`.
 | `winzsh-update` | Channels, checksum verify, staged replace, rollback metadata. |
 | `winzsh-detect` | Tool/binary detection and capability bits for lazy enablement. |
 | `winzsh-runtime-gen` | **Single writer** of runtime artifacts (merged module + lockfile hash). |
+| `winzsh-agent` | Background maintenance ticks (history, registry, optional update check). |
 
 ## Shell integration
 
 | Crate | Responsibility |
 |-------|----------------|
-| `winzsh-shell-host` | `ShellHost` trait and capability model (multi-shell future). |
+| `winzsh-shell-host` | `ShellHost` trait, shell ids, CMD/Nu/Bash adapters, catalog helpers. |
 | `winzsh-powershell` | PS7 profile markers, module path, PSReadLine detection. Not aesthetics. |
 
 ## Experience engines
@@ -51,8 +52,8 @@ Rust owns contracts and codegen inputs; PowerShell executes at runtime.
 |-------|----------------|
 | `winzsh-plugin` | Manifest parse, lifecycle, trust, dependency DAG. No network. |
 | `winzsh-registry` | HTTPS index client, signature hooks, caching. |
-| `winzsh-ai` | AI explain/ask/alias/safety (local + optional OpenAI-compatible HTTP). |
-| `winzsh-sync` | Stub until sync phase. |
+| `winzsh-ai` | Local offline AI explain/ask/alias/safety (no network). |
+| `winzsh-sync` | Settings sync bundles (export/import/push/pull). |
 
 ## Binary
 
@@ -69,4 +70,6 @@ Rust owns contracts and codegen inputs; PowerShell executes at runtime.
 | `themes/` | First-party themes |
 | `tests/` | Integration and e2e fixtures |
 | `scripts/ci/`, `scripts/release/` | Automation |
-| `website/` | Deferred placeholder |
+| `packaging/winget/` | Winget multi-file manifests + submit notes |
+| `registry/` | Community plugin index + packages |
+| `website/` | Static marketing / SEO landing page (Setup.exe download) |

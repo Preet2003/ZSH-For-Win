@@ -59,9 +59,7 @@ enabled = true
 enabled = ["git", "docker"]
 
 [ai]
-provider = "local"   # or "openai"
-model = "gpt-4o-mini"
-api_base = "https://api.openai.com/v1"
+provider = "local"   # offline heuristics only (no cloud)
 
 [aliases]
 # user aliases only; plugin aliases come from manifests
@@ -70,12 +68,34 @@ api_base = "https://api.openai.com/v1"
 [update]
 channel = "stable"
 check_on_start = true
+# github_repo = "winzsh/winzsh"
+# source_dir = "C:/Codes/Personal/ZshForWin/zsh-for-win"
+
+[registry]
+url = "https://raw.githubusercontent.com/winzsh/winzsh/main/registry/index.json"
+require_signature = false
+
+[sync]
+# Shared OneDrive/USB/git path for push/pull (or set WINZSH_SYNC_DEST)
+# destination = "C:/Users/you/OneDrive/winzsh-sync.json"
+include_plugins = false
+include_history = false
+
+[shells]
+# Opt-in bridges beyond PowerShell (primary remains install-managed)
+# enabled = ["cmd", "nu", "bash"]
+
+[agent]
+enabled = true
+interval_secs = 900
+compact_history = true
+refresh_registry = true
+check_updates = false
 
 [telemetry]
 # default off; explicit opt-in only if a future ADR allows it
 enabled = false
 ```
-
 ## Normative types
 
 Rust types in `winzsh-config` are the source of truth.

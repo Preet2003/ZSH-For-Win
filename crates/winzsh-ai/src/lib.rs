@@ -1,7 +1,6 @@
-//! AI helpers for Phase 6: explain, ask, safety check, alias suggest.
+//! AI helpers: explain, ask, safety check, alias suggest.
 //!
-//! Default provider is **local** (offline heuristics). Optional OpenAI-compatible
-//! HTTP when `provider = "openai"` and an API key is present.
+//! **Local only** — offline heuristics, no network, no API keys.
 
 #![forbid(unsafe_code)]
 
@@ -11,28 +10,22 @@ use winzsh_error::{Result, message};
 /// Compile-time phase marker.
 pub const PHASE: &str = "phase-6";
 
-/// Which backend answers explain/ask/alias.
+/// Backend for explain/ask/alias (local heuristics only).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum AiProvider {
     /// Offline heuristics (no network).
     #[default]
     Local,
-    /// OpenAI-compatible Chat Completions API.
-    Openai,
 }
 
-/// Runtime AI settings (from config + env).
+/// Runtime AI settings (from config).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AiSettings {
     /// Master enable (`features.ai`).
     pub enabled: bool,
-    /// Backend provider.
+    /// Backend provider (always local).
     pub provider: AiProvider,
-    /// Model id for cloud provider.
-    pub model: String,
-    /// API base URL (OpenAI-compatible).
-    pub api_base: String,
 }
 
 impl Default for AiSettings {
@@ -40,8 +33,6 @@ impl Default for AiSettings {
         Self {
             enabled: false,
             provider: AiProvider::Local,
-            model: "gpt-4o-mini".into(),
-            api_base: "https://api.openai.com/v1".into(),
         }
     }
 }
@@ -93,53 +84,12 @@ pub struct AiTextResult {
     pub notes: Vec<String>,
 }
 
-/// Resolve API key from environment (never logged).
-pub fn api_key_from_env() -> Option<String> {
-    for name in ["WINZSH_AI_API_KEY", "OPENAI_API_KEY"] {
-        if let Ok(v) = std::env::var(name) {
-            let t = v.trim();
-            if !t.is_empty() {
-                return Some(t.to_string());
-            }
-        }
-    }
-    None
-}
-
-/// Whether cloud calls can be attempted.
-pub fn cloud_ready(settings: &AiSettings) -> bool {
-    settings.enabled
-        && settings.provider == AiProvider::Openai
-        && api_key_from_env().is_some()
-}
-
 /// Explain a shell command (opt-in).
 pub fn explain(settings: &AiSettings, command: &str) -> Result<AiTextResult> {
     require_enabled(settings)?;
     let command = command.trim();
     if command.is_empty() {
         return Err(message("command must not be empty"));
-    }
-    if cloud_ready(settings) {
-        match chat(
-            settings,
-            &system_prompt_explain(),
-            &format!("Explain this PowerShell/Windows shell command for a developer:\n\n{command}"),
-        ) {
-            Ok(text) => {
-                return Ok(AiTextResult {
-                    provider: "openai".into(),
-                    text,
-                    notes: Vec::new(),
-                });
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "openai explain failed; falling back to local");
-                let mut local = explain_local(command);
-                local.notes.push(format!("cloud explain failed: {e}"));
-                return Ok(local);
-            }
-        }
     }
     Ok(explain_local(command))
 }
@@ -151,38 +101,6 @@ pub fn ask(settings: &AiSettings, prompt: &str) -> Result<AiTextResult> {
     if prompt.is_empty() {
         return Err(message("prompt must not be empty"));
     }
-    if cloud_ready(settings) {
-        match chat(
-            settings,
-            &system_prompt_ask(),
-            &format!(
-                "Convert this request into a single PowerShell 7 command. Reply with ONLY the command, no markdown:\n\n{prompt}"
-            ),
-        ) {
-            Ok(text) => {
-                let cmd = strip_code_fence(&text);
-                let mut notes = Vec::new();
-                let safety = check_safety(&cmd);
-                if safety.level != SafetyLevel::Ok {
-                    notes.push(format!(
-                        "safety: {:?} — run `winzsh ai check` before executing",
-                        safety.level
-                    ));
-                }
-                return Ok(AiTextResult {
-                    provider: "openai".into(),
-                    text: cmd,
-                    notes,
-                });
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "openai ask failed; falling back to local");
-                let mut local = ask_local(prompt);
-                local.notes.push(format!("cloud ask failed: {e}"));
-                return Ok(local);
-            }
-        }
-    }
     Ok(ask_local(prompt))
 }
 
@@ -192,29 +110,6 @@ pub fn suggest_alias(settings: &AiSettings, description: &str) -> Result<AiTextR
     let description = description.trim();
     if description.is_empty() {
         return Err(message("description must not be empty"));
-    }
-    if cloud_ready(settings) {
-        match chat(
-            settings,
-            "You suggest short PowerShell aliases for WinZSH. Reply with exactly two lines:\nNAME=<alias>\nVALUE=<expansion>",
-            description,
-        ) {
-            Ok(text) => {
-                return Ok(AiTextResult {
-                    provider: "openai".into(),
-                    text: format_alias_suggestion(&text, description),
-                    notes: vec![
-                        "Install with: winzsh alias set <name> \"<value>\"".into(),
-                    ],
-                });
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "openai alias failed; falling back to local");
-                let mut local = alias_local(description);
-                local.notes.push(format!("cloud alias failed: {e}"));
-                return Ok(local);
-            }
-        }
     }
     Ok(alias_local(description))
 }
@@ -357,7 +252,8 @@ fn explain_local(command: &str) -> AiTextResult {
         parts.push("Docker CLI — manages containers/images/compose.".into());
     } else if lower.starts_with("kubectl ") || lower.starts_with("k ") {
         parts.push("Kubernetes CLI — talks to a cluster API.".into());
-    } else if lower.contains("get-childitem") || lower.split_whitespace().next() == Some("ls")
+    } else if lower.contains("get-childitem")
+        || lower.split_whitespace().next() == Some("ls")
         || lower.split_whitespace().next() == Some("dir")
     {
         parts.push("Lists files and directories in the current (or given) path.".into());
@@ -370,8 +266,7 @@ fn explain_local(command: &str) -> AiTextResult {
         parts.push("Rust Cargo toolchain command (build/test/run/…).".into());
     } else {
         parts.push(
-            "Local explain: no specific heuristic matched. Enable OpenAI provider + API key for richer explanations."
-                .into(),
+            "Local explain: no specific heuristic matched for this command.".into(),
         );
         parts.push(format!("Command: {command}"));
     }
@@ -413,7 +308,7 @@ fn ask_local(prompt: &str) -> AiTextResult {
         "Clear-Host".into()
     } else {
         format!(
-            "# No local mapping for: {prompt}\n# Tip: set [ai] provider=\"openai\" and WINZSH_AI_API_KEY for cloud conversion"
+            "# No local mapping for: {prompt}\n# WinZSH AI is local-only (offline heuristics)."
         )
     };
 
@@ -466,95 +361,6 @@ fn alias_local(description: &str) -> AiTextResult {
     }
 }
 
-fn format_alias_suggestion(raw: &str, fallback_desc: &str) -> String {
-    let mut name = None;
-    let mut value = None;
-    for line in raw.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("NAME=") {
-            name = Some(rest.trim().to_string());
-        } else if let Some(rest) = line.strip_prefix("VALUE=") {
-            value = Some(rest.trim().to_string());
-        }
-    }
-    match (name, value) {
-        (Some(n), Some(v)) => format!("NAME={n}\nVALUE={v}"),
-        _ => alias_local(fallback_desc).text,
-    }
-}
-
-fn strip_code_fence(text: &str) -> String {
-    let t = text.trim();
-    if let Some(rest) = t.strip_prefix("```") {
-        let rest = rest
-            .strip_prefix("powershell")
-            .or_else(|| rest.strip_prefix("pwsh"))
-            .or_else(|| rest.strip_prefix("bash"))
-            .unwrap_or(rest);
-        let rest = rest.trim_start_matches('\n');
-        if let Some(end) = rest.find("```") {
-            return rest[..end].trim().to_string();
-        }
-    }
-    t.lines()
-        .next()
-        .unwrap_or(t)
-        .trim()
-        .trim_start_matches('$')
-        .to_string()
-}
-
-fn system_prompt_explain() -> String {
-    "You are WinZSH AI. Explain shell commands clearly for Windows PowerShell developers. Mention risks briefly. Keep under 8 sentences.".into()
-}
-
-fn system_prompt_ask() -> String {
-    "You are WinZSH AI. Output a single PowerShell 7 command only. Prefer PowerShell cmdlets over bash. Never wrap in markdown.".into()
-}
-
-fn chat(settings: &AiSettings, system: &str, user: &str) -> Result<String> {
-    let key = api_key_from_env().ok_or_else(|| message("missing WINZSH_AI_API_KEY / OPENAI_API_KEY"))?;
-    let url = format!(
-        "{}/chat/completions",
-        settings.api_base.trim_end_matches('/')
-    );
-    let body = serde_json::json!({
-        "model": settings.model,
-        "temperature": 0.2,
-        "messages": [
-            { "role": "system", "content": system },
-            { "role": "user", "content": user },
-        ],
-    });
-
-    let resp = ureq::post(&url)
-        .set("Authorization", &format!("Bearer {key}"))
-        .set("Content-Type", "application/json")
-        .timeout(std::time::Duration::from_secs(45))
-        .send_json(body)
-        .map_err(|e| message(format!("AI HTTP error: {e}")))?;
-
-    let status = resp.status();
-    let value: serde_json::Value = resp
-        .into_json()
-        .map_err(|e| message(format!("AI response parse error: {e}")))?;
-
-    if !(200..300).contains(&status) {
-        let err = value
-            .pointer("/error/message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown API error");
-        return Err(message(format!("AI API {status}: {err}")));
-    }
-
-    value
-        .pointer("/choices/0/message/content")
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| message("AI API returned empty content"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -591,13 +397,5 @@ mod tests {
         };
         let r = explain(&settings, "git status").expect("ok");
         assert!(r.text.to_ascii_lowercase().contains("git"));
-    }
-
-    #[test]
-    fn strip_fence() {
-        assert_eq!(
-            strip_code_fence("```powershell\nGet-ChildItem\n```"),
-            "Get-ChildItem"
-        );
     }
 }

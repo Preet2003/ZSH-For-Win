@@ -3,11 +3,11 @@
 ## Complete
 
 - [x] Opt-in AI (`features.ai`, `winzsh ai enable|disable|status`)
-- [x] Local offline provider: `explain`, `ask`, `alias`, `check`
-- [x] Optional OpenAI-compatible cloud (`ai.provider=openai` + `WINZSH_AI_API_KEY`)
+- [x] **Local-only** offline provider: `explain`, `ask`, `alias`, `check`
+- [x] No cloud / OpenAI / API keys (free forever)
 - [x] Safety heuristics (`ai check`) work even when AI is disabled
-- [x] Config `[ai]` provider/model/api_base; doctor reports AI status
-- [x] CLI wired through `winzsh-ai` (network allowed in this crate only)
+- [x] Config `[ai] provider = "local"`; doctor reports AI status
+- [x] CLI wired through `winzsh-ai` (no network in this crate)
 
 ## Try it
 
@@ -20,24 +20,8 @@ cargo run -p winzsh -- ai check "git push --force"
 cargo run -p winzsh -- ai alias "git status short"
 ```
 
-Optional cloud:
+## Related
 
-```toml
-# ~/.winzsh/config.toml
-[features]
-ai = true
-
-[ai]
-provider = "openai"
-model = "gpt-4o-mini"
-api_base = "https://api.openai.com/v1"
-```
-
-```powershell
-$env:WINZSH_AI_API_KEY = "sk-..."
-cargo run -p winzsh -- ai ask list files including hidden
-```
-
-## Next
-
-Plugin registry (signed community packs) and/or sync — separate tracks from AI.
+Multi-shell / agent — see [`MULTI-SHELL-GATE.md`](MULTI-SHELL-GATE.md).
+Plugin registry — see [`REGISTRY-GATE.md`](REGISTRY-GATE.md).
+Settings sync — see [`SYNC-GATE.md`](SYNC-GATE.md).

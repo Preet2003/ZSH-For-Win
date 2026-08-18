@@ -17,6 +17,27 @@ Update this file when new CLI commands, flags, or workflows ship.
 
 ---
 
+## First-time setup (download Setup.exe)
+
+```powershell
+# Download WinZSH-Setup-x86_64.exe from GitHub Releases, then:
+.\WinZSH-Setup-x86_64.exe          # or: setup -y
+# Open a NEW PowerShell tab:
+zsh-for-win
+```
+
+---
+
+## First-time setup (winget)
+
+```powershell
+winget install --id WinZSH.WinZSH -e   # after community repo publish
+```
+
+Upgrade: `winget upgrade WinZSH.WinZSH`
+
+---
+
 ## First-time setup (from source)
 
 **Recommended** (build + PATH + profile in one step):
@@ -99,6 +120,7 @@ Prefix with `cargo run -p winzsh --` while developing, or use `winzsh` once the 
 |---------|---------|
 | `install` | Install or repair (profile hook + runtime + config) |
 | `install --force` | Force repair even if already installed |
+| `setup [-y] [--theme id]` | Full download-and-run setup (copy exe, PATH, install, theme) |
 | `reload` | Rebuild cached PowerShell runtime from config |
 | `doctor` | Health checks + remediation hints |
 | `status` | Version, home path, install state, theme |
@@ -128,21 +150,36 @@ winzsh alias set myalias "git status"
 | `history compact` | Compact spool into store |
 | `completion list` | List completion packs (active vs available) |
 | `plugin list` | List first-party / installed plugins |
-| `plugin add <id\|path>` | Install + enable a plugin |
+| `plugin search [query]` | Search the community registry |
+| `plugin info <id>` | Registry metadata for a plugin |
+| `plugin add <id\|path>` | Install + enable (builtin → registry → path) |
+| `plugin update [id]` | Update registry-origin plugins |
 | `plugin remove <id>` | Uninstall plugin files + disable |
 | `plugin enable <id>` | Enable installed plugin |
 | `plugin disable <id>` | Disable (keep files) |
-| `ai status` | AI enablement / provider / key status |
+| `ai status` | AI enablement (local offline) |
 | `ai enable` / `ai disable` | Toggle `features.ai` |
-| `ai explain <cmd…>` | Explain a command (opt-in) |
-| `ai ask <text…>` | English → PowerShell suggestion (opt-in) |
+| `ai explain <cmd…>` | Explain a command (opt-in, local) |
+| `ai ask <text…>` | English → PowerShell suggestion (opt-in, local) |
 | `ai check <cmd…>` | Safety scan (works even when AI off) |
-| `ai alias <text…>` | Suggest an alias (opt-in) |
+| `ai alias <text…>` | Suggest an alias (opt-in, local) |
+| `sync status` | Sync destination + last export/import |
+| `sync export [-p path] [--plugins] [--history]` | Write `winzsh-sync.json` |
+| `sync import [-p path\|url]` | Apply bundle (backs up config) |
+| `sync push` / `sync pull` | Use `[sync].destination` |
+| `shell list` / `shell status` | Multi-shell catalog (detected / hooked / enabled) |
+| `shell enable|disable <id>` | Opt-in CMD / Nu / Bash bridges |
+| `agent status|start|stop` | Background maintenance agent |
+| `agent run-once` / `agent run` | One tick or foreground loop |
+| `update` | Apply GitHub Release update (needs `[update].github_repo`) |
+| `update --check` | Check only (no download/rebuild) |
+| `update --from-source [path] [--pull]` | Rebuild from checkout (source installs) |
+| `update --rollback` | Restore previous CLI from `.bak` |
 | `uninstall` | Remove managed profile hook (keep `~/.winzsh`) |
 
 ### AI helpers (Phase 6)
 
-Off by default. Local heuristics need no API key; cloud needs `WINZSH_AI_API_KEY` or `OPENAI_API_KEY`.
+Off by default. **Local-only** offline heuristics — no API keys, no cloud.
 
 ```powershell
 cargo run -p winzsh -- ai enable
@@ -156,9 +193,7 @@ cargo run -p winzsh -- ai check "git push --force"
 ai = true
 
 [ai]
-provider = "local"   # or "openai"
-model = "gpt-4o-mini"
-api_base = "https://api.openai.com/v1"
+provider = "local"
 ```
 | `uninstall --purge` | Remove hook **and** delete `~/.winzsh` |
 
@@ -305,6 +340,14 @@ cargo clippy --workspace --all-targets -- -D warnings
 ./scripts/ci/check-crate-deps.ps1
 ```
 
+### Release / winget dry-run
+
+```powershell
+./scripts/release/package.ps1
+./scripts/release/fill-winget-manifest.ps1
+winget validate --manifest packaging\winget\WinZSH.WinZSH
+```
+
 Architecture / design: [`docs/architecture/`](architecture/).
 
 ---
@@ -313,11 +356,75 @@ Architecture / design: [`docs/architecture/`](architecture/).
 
 | Command | Phase / notes |
 |---------|----------------|
-| `update` | Self-update / channel |
-| `sync` | Settings sync |
-| plugin registry | Signed community packs |
+| (none critical) | Native Nu/Bash runtime; Task Scheduler agent auto-start |
 
 When a command ships, move it into **Core CLI commands** above and add a short workflow section.
+
+---
+
+## Multi-shell / agent
+
+```powershell
+winzsh shell list
+winzsh shell enable cmd
+winzsh agent run-once
+winzsh agent start
+winzsh agent status
+winzsh agent stop
+```
+
+See [`MULTI-SHELL-GATE.md`](architecture/MULTI-SHELL-GATE.md).
+
+---
+
+## Settings sync
+
+```powershell
+winzsh sync export -p $env:OneDrive\winzsh-sync.json --plugins
+winzsh sync import -p $env:OneDrive\winzsh-sync.json
+
+# Or configure [sync].destination once, then:
+winzsh sync push --plugins
+winzsh sync pull
+```
+
+See [`SYNC-GATE.md`](architecture/SYNC-GATE.md).
+
+---
+
+## Plugin registry
+
+```powershell
+winzsh plugin search
+winzsh plugin info demo-aliases
+winzsh plugin add demo-aliases
+winzsh plugin update
+```
+
+Index: `[registry].url` or `WINZSH_REGISTRY_URL` (see `registry/README.md`).
+
+---
+
+## Self-update
+
+Source installs (no GitHub Releases yet):
+
+```powershell
+# Uses [update].source_dir, WINZSH_SOURCE, or walks cwd
+winzsh update --from-source --pull
+winzsh update --check
+winzsh update --rollback   # if a previous binary was backed up
+```
+
+When Releases exist, set in `~/.winzsh/config.toml`:
+
+```toml
+[update]
+github_repo = "owner/repo"
+channel = "stable"
+```
+
+Then `winzsh update` / `winzsh update --check` use GitHub assets.
 
 ---
 

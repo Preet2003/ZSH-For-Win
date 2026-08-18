@@ -13,6 +13,9 @@ and a generated in-process PowerShell runtime for the interactive hot path.
 | [dependency-rules.md](dependency-rules.md) | Allowed edges, layering, network boundaries |
 | [config-schema.md](config-schema.md) | `config.toml` format, layering, migrations |
 | [plugin-spec.md](plugin-spec.md) | Plugin package format, trust, lifecycle |
+| [REGISTRY-GATE.md](REGISTRY-GATE.md) | Community registry client + publish checklist |
+| [SYNC-GATE.md](SYNC-GATE.md) | Settings sync export/import/push/pull |
+| [MULTI-SHELL-GATE.md](MULTI-SHELL-GATE.md) | Multi-shell bridges + background agent |
 | [coding-conventions.md](coding-conventions.md) | Rust/PowerShell conventions, errors, logging |
 | [testing-strategy.md](testing-strategy.md) | Unit → e2e, fuzz, supply chain |
 | [release-strategy.md](release-strategy.md) | Channels, artifacts, winget, rollback |
@@ -24,7 +27,7 @@ Product vision (non-normative): [Windows shell experience.md](../Windows%20shell
 
 1. Enhance PowerShell; do not replace it.
 2. Hot path = generated PS module; cold path = Rust CLI.
-3. Single binary for users; optional agent only later.
+3. Single user-facing binary (`winzsh`); background agent is `winzsh agent` (same binary).
 4. Plugins V1 = manifest + PS assets + codegen (no native DLLs).
 5. Config = versioned TOML; runtime artifacts are derived.
 6. Strict crate layers; no network in core engines.

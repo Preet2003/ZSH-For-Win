@@ -23,6 +23,7 @@ pub fn ensure_layout(paths: &WinzshPaths) -> Result<()> {
     ensure_dir(&paths.themes_dir())?;
     ensure_dir(&paths.locks_dir())?;
     ensure_dir(&paths.history_dir())?;
+    ensure_dir(&paths.registry_cache_dir())?;
     Ok(())
 }
 

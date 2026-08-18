@@ -144,11 +144,16 @@ impl ShellHost for PowerShellHost {
         "powershell"
     }
 
+    fn id(&self) -> winzsh_shell_host::ShellId {
+        winzsh_shell_host::ShellId::PowerShell
+    }
+
     fn capabilities(&self) -> Capabilities {
         Capabilities {
             profile_hooks: true,
             line_editor: true,
             completions: true,
+            experimental: false,
         }
     }
 

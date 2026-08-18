@@ -23,6 +23,12 @@ pub struct DetectionReport {
     pub fzf: Option<PathBuf>,
     /// Path to `zoxide` if found.
     pub zoxide: Option<PathBuf>,
+    /// Path to `nu` (Nushell) if found.
+    pub nu: Option<PathBuf>,
+    /// Path to `bash` (Git Bash) if found.
+    pub bash: Option<PathBuf>,
+    /// Path to `cmd.exe` if found.
+    pub cmd: Option<PathBuf>,
     /// Resolved PowerShell user profile path.
     pub profile_path: Option<PathBuf>,
     /// Names of additional detected commands on PATH.
@@ -59,6 +65,9 @@ pub fn detect_environment() -> Result<DetectionReport> {
     let windows_terminal = find_on_path("wt");
     let fzf = find_on_path("fzf").or_else(|| find_winget_tool("fzf"));
     let zoxide = find_on_path("zoxide").or_else(|| find_winget_tool("zoxide"));
+    let nu = find_on_path("nu");
+    let bash = find_on_path("bash");
+    let cmd = find_cmd();
     let profile_path = resolve_profile_path(pwsh.as_deref().or(windows_powershell.as_deref()))?;
 
     let mut commands = Vec::new();
@@ -80,6 +89,15 @@ pub fn detect_environment() -> Result<DetectionReport> {
     if zoxide.is_some() {
         commands.push("zoxide".to_string());
     }
+    if nu.is_some() {
+        commands.push("nu".to_string());
+    }
+    if bash.is_some() {
+        commands.push("bash".to_string());
+    }
+    if cmd.is_some() {
+        commands.push("cmd".to_string());
+    }
     // Phase 4 developer CLIs (completion packs)
     for name in [
         "docker", "kubectl", "npm", "pnpm", "yarn", "terraform", "ssh", "aws", "az", "cargo",
@@ -99,6 +117,9 @@ pub fn detect_environment() -> Result<DetectionReport> {
         windows_terminal,
         fzf,
         zoxide,
+        nu,
+        bash,
+        cmd,
         profile_path: Some(profile_path),
         commands,
     })
@@ -168,6 +189,15 @@ pub fn find_pwsh() -> Option<PathBuf> {
 /// Locate Windows PowerShell 5.1 (`powershell.exe`).
 pub fn find_windows_powershell() -> Option<PathBuf> {
     find_on_path("powershell").or_else(find_windows_powershell_well_known)
+}
+
+/// Locate `cmd.exe`.
+pub fn find_cmd() -> Option<PathBuf> {
+    find_on_path("cmd").or_else(|| {
+        let system_root = std::env::var_os("SystemRoot")?;
+        let candidate = PathBuf::from(system_root).join("System32").join("cmd.exe");
+        candidate.is_file().then_some(candidate)
+    })
 }
 
 fn find_pwsh_well_known() -> Option<PathBuf> {

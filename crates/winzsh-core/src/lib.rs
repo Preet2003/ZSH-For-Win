@@ -122,6 +122,44 @@ impl WinzshPaths {
         self.root.join("plugins")
     }
 
+    /// Cached plugin registry index and downloads.
+    pub fn registry_cache_dir(&self) -> PathBuf {
+        self.root.join("cache").join("registry")
+    }
+
+    /// Cached registry index file.
+    pub fn registry_index_cache(&self) -> PathBuf {
+        self.registry_cache_dir().join("index.json")
+    }
+
+    /// Sync state / last push-pull metadata.
+    pub fn sync_state_file(&self) -> PathBuf {
+        self.root.join("sync-state.json")
+    }
+
+    /// Directory for the installed CLI binary (`~/.winzsh/bin`).
+    pub fn bin_dir(&self) -> PathBuf {
+        self.root.join("bin")
+    }
+
+    /// Installed CLI path (`~/.winzsh/bin/winzsh.exe` on Windows).
+    pub fn cli_binary(&self) -> PathBuf {
+        if cfg!(windows) {
+            self.bin_dir().join("winzsh.exe")
+        } else {
+            self.bin_dir().join("winzsh")
+        }
+    }
+
+    /// Previous CLI kept for rollback (`winzsh.exe.bak`).
+    pub fn cli_binary_backup(&self) -> PathBuf {
+        if cfg!(windows) {
+            self.bin_dir().join("winzsh.exe.bak")
+        } else {
+            self.bin_dir().join("winzsh.bak")
+        }
+    }
+
     /// Path to themes directory.
     pub fn themes_dir(&self) -> PathBuf {
         self.root.join("themes")
@@ -133,11 +171,18 @@ impl WinzshPaths {
     }
 
     /// Global WinZSH shell-active lock (`locks/shell.active`).
-    ///
-    /// Created by `zsh-for-win`, removed when any nested session `exit`s so every
-    /// other PowerShell terminal drops back to stock.
     pub fn shell_active_lock(&self) -> PathBuf {
         self.locks_dir().join("shell.active")
+    }
+
+    /// Background agent PID file.
+    pub fn agent_pid_file(&self) -> PathBuf {
+        self.locks_dir().join("agent.pid")
+    }
+
+    /// Background agent heartbeat JSON.
+    pub fn agent_heartbeat_file(&self) -> PathBuf {
+        self.locks_dir().join("agent.heartbeat.json")
     }
 
     /// Path to history directory.
