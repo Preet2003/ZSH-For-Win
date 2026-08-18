@@ -74,8 +74,7 @@ impl ShellHost for CmdHost {
     fn remove_hook(&self) -> Result<()> {
         let path = self.launcher_path();
         if path.is_file() {
-            std::fs::remove_file(&path)
-                .map_err(|source| winzsh_error::io(path.clone(), source))?;
+            std::fs::remove_file(&path).map_err(|source| winzsh_error::io(path.clone(), source))?;
         }
         Ok(())
     }

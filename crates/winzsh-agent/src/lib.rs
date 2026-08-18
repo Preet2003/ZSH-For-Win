@@ -72,14 +72,14 @@ pub fn tick(paths: &WinzshPaths, cfg: &Config) -> Result<TickReport> {
                 info!(entries = n, "agent: history compacted");
             }
             Err(err) => {
-                report
-                    .notes
-                    .push(format!("history compact failed: {err}"));
+                report.notes.push(format!("history compact failed: {err}"));
                 warn!(error = %err, "agent: history compact failed");
             }
         }
     } else {
-        report.notes.push("history compact skipped (disabled)".into());
+        report
+            .notes
+            .push("history compact skipped (disabled)".into());
     }
 
     if agent.refresh_registry {
@@ -89,9 +89,7 @@ pub fn tick(paths: &WinzshPaths, cfg: &Config) -> Result<TickReport> {
                 info!(source = %loaded.source, "agent: registry refreshed");
             }
             Err(err) => {
-                report
-                    .notes
-                    .push(format!("registry refresh failed: {err}"));
+                report.notes.push(format!("registry refresh failed: {err}"));
                 warn!(error = %err, "agent: registry refresh failed");
             }
         }
@@ -138,7 +136,11 @@ pub fn run_loop(paths: &WinzshPaths, cfg: &Config) -> Result<()> {
     clear_stop_flag(paths)?;
 
     let started = now_rfc3339();
-    info!(pid, interval = cfg.agent.interval_secs, "agent: loop starting");
+    info!(
+        pid,
+        interval = cfg.agent.interval_secs,
+        "agent: loop starting"
+    );
 
     // Initial heartbeat before first sleep.
     let mut hb = Heartbeat {
@@ -310,8 +312,8 @@ fn read_heartbeat(paths: &WinzshPaths) -> Result<Option<Heartbeat>> {
         return Ok(None);
     }
     let raw = winzsh_fs::read_string(&path)?;
-    let hb: Heartbeat = serde_json::from_str(&raw)
-        .map_err(|e| message(format!("parse agent heartbeat: {e}")))?;
+    let hb: Heartbeat =
+        serde_json::from_str(&raw).map_err(|e| message(format!("parse agent heartbeat: {e}")))?;
     Ok(Some(hb))
 }
 

@@ -155,10 +155,14 @@ fn validate_manifest(m: &PluginManifest) -> Result<()> {
     }
     for (alias, value) in &m.aliases {
         if !is_valid_alias_name(alias) {
-            return Err(message(format!("plugin alias '{alias}' has an invalid name")));
+            return Err(message(format!(
+                "plugin alias '{alias}' has an invalid name"
+            )));
         }
         if value.trim().is_empty() {
-            return Err(message(format!("plugin alias '{alias}' value must not be empty")));
+            return Err(message(format!(
+                "plugin alias '{alias}' value must not be empty"
+            )));
         }
     }
     Ok(())
@@ -285,15 +289,12 @@ pub fn collect_aliases(plugins: &[InstalledPlugin]) -> BTreeMap<String, String> 
 
 /// Install a first-party plugin by id into `~/.winzsh/plugins/<id>`.
 pub fn add_first_party(paths: &WinzshPaths, id: &str) -> Result<PluginManifest> {
-    let embedded = FIRST_PARTY
-        .iter()
-        .find(|p| p.id == id)
-        .ok_or_else(|| {
-            message(format!(
-                "unknown first-party plugin '{id}'. Available: {}",
-                first_party_ids().join(", ")
-            ))
-        })?;
+    let embedded = FIRST_PARTY.iter().find(|p| p.id == id).ok_or_else(|| {
+        message(format!(
+            "unknown first-party plugin '{id}'. Available: {}",
+            first_party_ids().join(", ")
+        ))
+    })?;
     let dest = paths.plugins_dir().join(id);
     if dest.join("plugin.toml").is_file() {
         return Err(message(format!(
@@ -321,16 +322,17 @@ pub fn add_from_path(paths: &WinzshPaths, src: &Path) -> Result<PluginManifest> 
 }
 
 /// Install (or replace) a plugin tree from a directory that contains `plugin.toml`.
-pub fn install_from_dir(paths: &WinzshPaths, src: &Path, overwrite: bool) -> Result<PluginManifest> {
+pub fn install_from_dir(
+    paths: &WinzshPaths,
+    src: &Path,
+    overwrite: bool,
+) -> Result<PluginManifest> {
     let src = src
         .canonicalize()
         .map_err(|source| winzsh_error::io(src.to_path_buf(), source))?;
     let manifest_path = src.join("plugin.toml");
     if !manifest_path.is_file() {
-        return Err(message(format!(
-            "no plugin.toml in {}",
-            src.display()
-        )));
+        return Err(message(format!("no plugin.toml in {}", src.display())));
     }
     let raw = read_string(&manifest_path)?;
     let manifest = parse_manifest(&raw)?;
@@ -367,9 +369,8 @@ pub fn write_origin(
     sha256: Option<&str>,
 ) -> Result<()> {
     let dest = paths.plugins_dir().join(id).join(".winzsh-origin.toml");
-    let mut body = format!(
-        "source = \"{source}\"\nversion = \"{version}\"\ninstalled_by = \"winzsh\"\n"
-    );
+    let mut body =
+        format!("source = \"{source}\"\nversion = \"{version}\"\ninstalled_by = \"winzsh\"\n");
     if let Some(hash) = sha256 {
         body.push_str(&format!("sha256 = \"{hash}\"\n"));
     }
@@ -512,9 +513,7 @@ pub fn render_powershell(plugins: &[InstalledPlugin]) -> String {
             }
         }
 
-        out.push_str(&format!(
-            "    $script:WinZshPluginsLoaded += '{id}'\n"
-        ));
+        out.push_str(&format!("    $script:WinZshPluginsLoaded += '{id}'\n"));
         out.push_str(&format!(
             "}} catch {{\n    Write-Warning \"WinZSH plugin '{id}' failed to load: $_\"\n}}\n"
         ));
@@ -530,7 +529,8 @@ pub fn plugin_id(name: impl Into<String>) -> PluginId {
 
 fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
     ensure_dir(dst)?;
-    let entries = fs::read_dir(src).map_err(|source| winzsh_error::io(src.to_path_buf(), source))?;
+    let entries =
+        fs::read_dir(src).map_err(|source| winzsh_error::io(src.to_path_buf(), source))?;
     for entry in entries {
         let entry = entry.map_err(|source| winzsh_error::io(src.to_path_buf(), source))?;
         let from = entry.path();

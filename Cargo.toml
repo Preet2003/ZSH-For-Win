@@ -31,13 +31,14 @@ members = [
 default-members = ["crates/winzsh"]
 
 [workspace.package]
+publish = false
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/winzsh/winzsh"
+repository = "https://github.com/Preet2003/ZSH-For-Win"
 rust-version = "1.85"
 authors = ["WinZSH Contributors"]
-description = "Oh My Zsh–style developer experience layer for Windows shells"
+description = "Oh My Zsh-style developer experience layer for Windows shells"
 
 [workspace.dependencies]
 # Internal crates

@@ -98,8 +98,8 @@ pub fn fetch_index(paths: &WinzshPaths, cfg: &RegistryConfig) -> Result<LoadedIn
     ensure_dir(&paths.registry_cache_dir())?;
 
     if let Some(path) = file_url_to_path(&url) {
-        let raw = fs::read_to_string(&path)
-            .map_err(|source| winzsh_error::io(path.clone(), source))?;
+        let raw =
+            fs::read_to_string(&path).map_err(|source| winzsh_error::io(path.clone(), source))?;
         let index = parse_index(&raw)?;
         atomic_write(&paths.registry_index_cache(), &raw)?;
         return Ok(LoadedIndex {
@@ -217,10 +217,11 @@ fn install_entry(
         )));
     }
 
-    let staging = paths
-        .registry_cache_dir()
-        .join("staging")
-        .join(format!("{}-{}", entry.id, std::process::id()));
+    let staging = paths.registry_cache_dir().join("staging").join(format!(
+        "{}-{}",
+        entry.id,
+        std::process::id()
+    ));
     if staging.exists() {
         let _ = fs::remove_dir_all(&staging);
     }
@@ -236,13 +237,7 @@ fn install_entry(
             entry.id, manifest.name
         )));
     }
-    plugin::write_origin(
-        paths,
-        &entry.id,
-        "registry",
-        &entry.version,
-        Some(&actual),
-    )?;
+    plugin::write_origin(paths, &entry.id, "registry", &entry.version, Some(&actual))?;
     let _ = fs::remove_dir_all(&staging);
     info!(plugin = %entry.id, version = %entry.version, "installed from registry");
     Ok(manifest)
@@ -257,9 +252,11 @@ pub fn update(
 ) -> Result<Vec<PluginManifest>> {
     let mut updated = Vec::new();
     let targets: Vec<RegistryPlugin> = if let Some(id) = only_id {
-        vec![find(&loaded.index, id)
-            .cloned()
-            .ok_or_else(|| message(format!("plugin '{id}' not in registry")))?]
+        vec![
+            find(&loaded.index, id)
+                .cloned()
+                .ok_or_else(|| message(format!("plugin '{id}' not in registry")))?,
+        ]
     } else {
         loaded.index.plugins.clone()
     };
@@ -403,8 +400,8 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 fn extract_zip(bytes: &[u8], dest: &Path) -> Result<()> {
     let reader = Cursor::new(bytes);
-    let mut archive = zip::ZipArchive::new(reader)
-        .map_err(|e| message(format!("invalid plugin zip: {e}")))?;
+    let mut archive =
+        zip::ZipArchive::new(reader).map_err(|e| message(format!("invalid plugin zip: {e}")))?;
     for i in 0..archive.len() {
         let mut file = archive
             .by_index(i)
@@ -414,10 +411,7 @@ fn extract_zip(bytes: &[u8], dest: &Path) -> Result<()> {
         };
         let rel = rel.to_path_buf();
         if rel.components().any(|c| matches!(c, Component::ParentDir)) {
-            return Err(message(format!(
-                "zip slip blocked: {}",
-                rel.display()
-            )));
+            return Err(message(format!("zip slip blocked: {}", rel.display())));
         }
         let out = dest.join(&rel);
         if file.is_dir() {
@@ -439,8 +433,8 @@ fn find_plugin_root(staging: &Path) -> Result<PathBuf> {
     if staging.join("plugin.toml").is_file() {
         return Ok(staging.to_path_buf());
     }
-    let entries = fs::read_dir(staging)
-        .map_err(|source| winzsh_error::io(staging.to_path_buf(), source))?;
+    let entries =
+        fs::read_dir(staging).map_err(|source| winzsh_error::io(staging.to_path_buf(), source))?;
     for entry in entries {
         let entry = entry.map_err(|source| winzsh_error::io(staging.to_path_buf(), source))?;
         let path = entry.path();
@@ -456,8 +450,8 @@ fn find_plugin_root(staging: &Path) -> Result<PathBuf> {
 
 /// Zip a directory (plugin.toml at archive root) — used for path: folder installs.
 fn zip_directory(dir: &Path) -> Result<Vec<u8>> {
-    use zip::write::SimpleFileOptions;
     use zip::CompressionMethod;
+    use zip::write::SimpleFileOptions;
 
     let mut cursor = Cursor::new(Vec::new());
     {
@@ -476,7 +470,8 @@ fn add_dir_to_zip<W: Write + std::io::Seek>(
     prefix: &Path,
     options: zip::write::SimpleFileOptions,
 ) -> Result<()> {
-    let entries = fs::read_dir(dir).map_err(|source| winzsh_error::io(dir.to_path_buf(), source))?;
+    let entries =
+        fs::read_dir(dir).map_err(|source| winzsh_error::io(dir.to_path_buf(), source))?;
     for entry in entries {
         let entry = entry.map_err(|source| winzsh_error::io(dir.to_path_buf(), source))?;
         let path = entry.path();
@@ -546,7 +541,12 @@ mod tests {
         };
         let manifest = install(&home.paths, &cfg, &loaded, "demo-aliases", false).expect("install");
         assert_eq!(manifest.name, "demo-aliases");
-        assert!(home.paths.plugins_dir().join("demo-aliases/plugin.toml").is_file());
+        assert!(
+            home.paths
+                .plugins_dir()
+                .join("demo-aliases/plugin.toml")
+                .is_file()
+        );
         assert_eq!(
             plugin::read_origin_source(&home.paths, "demo-aliases").as_deref(),
             Some("registry")

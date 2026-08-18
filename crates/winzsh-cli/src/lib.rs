@@ -9,28 +9,28 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitCode, Stdio};
 use tracing::error;
-use winzsh_ai::{self as ai, AiProvider, AiSettings};
 use winzsh_agent::{self as agent};
+use winzsh_ai::{self as ai, AiProvider, AiSettings};
 use winzsh_alias::{self as alias};
 use winzsh_completion::{self as completion, CompletionPolicy};
 use winzsh_config::{self as config, Config};
 use winzsh_core::{VERSION, WinzshPaths};
 use winzsh_detect::{DetectionReport, detect_environment};
-use winzsh_plugin::{self as plugin};
-use winzsh_powershell::PowerShellHost;
-use winzsh_registry::{self as registry};
 use winzsh_doctor::{self as doctor, Severity};
 use winzsh_error::Error;
 use winzsh_history::{self as history, HistoryQuery};
 use winzsh_installer::{self as installer, InstallOptions, SelfInstallOptions, UninstallOptions};
 use winzsh_log::LogOptions;
+use winzsh_plugin::{self as plugin};
+use winzsh_powershell::PowerShellHost;
+use winzsh_registry::{self as registry};
 use winzsh_runtime_gen::{self as runtime_gen};
 use winzsh_shell_host::{
     self as shell_host, BashHost, CmdHost, NuHost, ShellHost, ShellId, catalog_entry,
 };
+use winzsh_sync::{self as sync, ExportOptions, ImportOptions};
 use winzsh_theme::{self as theme};
 use winzsh_update::{self as update, FromSourceOptions};
-use winzsh_sync::{self as sync, ExportOptions, ImportOptions};
 
 /// WinZSH — Oh My Zsh–style developer experience for Windows shells.
 #[derive(Debug, Parser)]
@@ -410,12 +410,7 @@ fn exe_looks_like_setup() -> bool {
         .unwrap_or(false)
 }
 
-fn cmd_setup(
-    paths: &WinzshPaths,
-    yes: bool,
-    theme: String,
-    json: bool,
-) -> Result<ExitCode, Error> {
+fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Result<ExitCode, Error> {
     if !yes && !json && io::stdin().is_terminal() {
         eprint!(
             "Install WinZSH {VERSION} to {} ? [Y/n] ",
@@ -811,10 +806,8 @@ fn cmd_alias(paths: &WinzshPaths, sub: AliasCommands, json: bool) -> Result<Exit
             require_installed(paths)?;
             let cfg = config::load(paths)?;
             let detected = detect_environment().unwrap_or_default();
-            let active_plugins =
-                plugin::resolve_active(paths, &cfg.plugins.enabled, &detected)?;
-            let plugin_aliases =
-                alias::from_plugin_map(&plugin::collect_aliases(&active_plugins))?;
+            let active_plugins = plugin::resolve_active(paths, &cfg.plugins.enabled, &detected)?;
+            let plugin_aliases = alias::from_plugin_map(&plugin::collect_aliases(&active_plugins))?;
             let user = alias::from_user_map(&cfg.aliases)?;
             let set = alias::merge(alias::builtin_aliases(), plugin_aliases, user);
             if json {
@@ -951,10 +944,7 @@ fn cmd_completion(
                         completion::CompletionStrategy::NativeGenerate => "native",
                         completion::CompletionStrategy::SshHosts => "ssh_hosts",
                     };
-                    println!(
-                        "{:<12} {:<10} {:<8} {}",
-                        p.id, p.command, active, strategy
-                    );
+                    println!("{:<12} {:<10} {:<8} {}", p.id, p.command, active, strategy);
                 }
             }
             Ok(ExitCode::SUCCESS)
@@ -1017,15 +1007,8 @@ fn cmd_plugin(paths: &WinzshPaths, sub: PluginCommands, json: bool) -> Result<Ex
                     })
                 );
             } else {
-                println!(
-                    "Registry ({}): {} plugin(s)",
-                    loaded.source,
-                    hits.len()
-                );
-                println!(
-                    "{:<14} {:<8} {:<18} DESCRIPTION",
-                    "ID", "VERSION", "AUTHOR"
-                );
+                println!("Registry ({}): {} plugin(s)", loaded.source, hits.len());
+                println!("{:<14} {:<8} {:<18} DESCRIPTION", "ID", "VERSION", "AUTHOR");
                 for p in hits {
                     println!(
                         "{:<14} {:<8} {:<18} {}",
@@ -1123,8 +1106,7 @@ fn cmd_plugin(paths: &WinzshPaths, sub: PluginCommands, json: bool) -> Result<Ex
             require_installed(paths)?;
             let mut cfg = config::load(paths)?;
             let loaded = registry::fetch_index(paths, &cfg.registry)?;
-            let updated =
-                registry::update(paths, &cfg.registry, &loaded, id.as_deref())?;
+            let updated = registry::update(paths, &cfg.registry, &loaded, id.as_deref())?;
             for m in &updated {
                 if !cfg.plugins.enabled.iter().any(|e| e == &m.name) {
                     cfg.plugins.enabled.push(m.name.clone());
@@ -1218,7 +1200,10 @@ fn cmd_sync(paths: &WinzshPaths, sub: SyncCommands, json: bool) -> Result<ExitCo
                         .map_err(|e| Error::Message(e.to_string()))?
                 );
             } else {
-                println!("Sync destination: {}", blank_or(&report.destination, "(not set)"));
+                println!(
+                    "Sync destination: {}",
+                    blank_or(&report.destination, "(not set)")
+                );
                 println!(
                     "Defaults: include_plugins={} include_history={}",
                     report.include_plugins, report.include_history
@@ -1238,7 +1223,9 @@ fn cmd_sync(paths: &WinzshPaths, sub: SyncCommands, json: bool) -> Result<ExitCo
                     println!("Last sha256:  {}", report.state.last_sha256);
                 }
                 println!();
-                println!("Tip: set [sync].destination to an OneDrive/USB path, then `winzsh sync push` / `pull`.");
+                println!(
+                    "Tip: set [sync].destination to an OneDrive/USB path, then `winzsh sync push` / `pull`."
+                );
             }
             Ok(ExitCode::SUCCESS)
         }
@@ -1399,7 +1386,9 @@ fn cmd_shell(paths: &WinzshPaths, sub: ShellCommands, json: bool) -> Result<Exit
                     }
                 }
                 println!();
-                println!("Tip: winzsh shell enable cmd|nu|bash  (PowerShell is managed by install)");
+                println!(
+                    "Tip: winzsh shell enable cmd|nu|bash  (PowerShell is managed by install)"
+                );
             }
             Ok(ExitCode::SUCCESS)
         }
@@ -1441,7 +1430,9 @@ fn cmd_shell(paths: &WinzshPaths, sub: ShellCommands, json: bool) -> Result<Exit
                     host.profile_path()?.display()
                 );
                 if host.capabilities().experimental {
-                    println!("Note: this bridge is experimental; full runtime still runs in PowerShell via zsh-for-win.");
+                    println!(
+                        "Note: this bridge is experimental; full runtime still runs in PowerShell via zsh-for-win."
+                    );
                 }
             }
             Ok(ExitCode::SUCCESS)
@@ -1588,9 +1579,7 @@ fn build_shell_catalog(
     out.push(catalog_entry(
         &ps,
         detected.has_powershell_host(),
-        detected
-            .preferred_shell()
-            .map(|p| p.display().to_string()),
+        detected.preferred_shell().map(|p| p.display().to_string()),
         true,
     )?);
 
@@ -1621,7 +1610,10 @@ fn build_shell_catalog(
     Ok(out)
 }
 
-fn powershell_host(paths: &WinzshPaths, detected: &DetectionReport) -> Result<PowerShellHost, Error> {
+fn powershell_host(
+    paths: &WinzshPaths,
+    detected: &DetectionReport,
+) -> Result<PowerShellHost, Error> {
     let profile = detected
         .profile_path
         .clone()
@@ -1649,16 +1641,12 @@ fn parse_shell_id(raw: &str) -> Result<ShellId, Error> {
 }
 
 fn shell_config_enabled(enabled: &[String], id: ShellId) -> bool {
-    enabled
-        .iter()
-        .any(|s| ShellId::parse(s) == Some(id))
+    enabled.iter().any(|s| ShellId::parse(s) == Some(id))
 }
 
 fn set_shell_enabled(cfg: &mut Config, id: ShellId, on: bool) {
     let key = id.as_str().to_string();
-    cfg.shells
-        .enabled
-        .retain(|s| ShellId::parse(s) != Some(id));
+    cfg.shells.enabled.retain(|s| ShellId::parse(s) != Some(id));
     if on {
         cfg.shells.enabled.push(key);
     }

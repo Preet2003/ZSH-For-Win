@@ -62,9 +62,29 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["git"],
             CompletionStrategy::Builtin,
             &[
-                "status", "add", "commit", "push", "pull", "fetch", "clone", "checkout", "switch",
-                "branch", "merge", "rebase", "log", "diff", "stash", "remote", "reset", "tag",
-                "cherry-pick", "restore", "clean", "init", "submodule",
+                "status",
+                "add",
+                "commit",
+                "push",
+                "pull",
+                "fetch",
+                "clone",
+                "checkout",
+                "switch",
+                "branch",
+                "merge",
+                "rebase",
+                "log",
+                "diff",
+                "stash",
+                "remote",
+                "reset",
+                "tag",
+                "cherry-pick",
+                "restore",
+                "clean",
+                "init",
+                "submodule",
             ],
             &[],
         ),
@@ -74,8 +94,9 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["docker"],
             CompletionStrategy::NativeGenerate,
             &[
-                "build", "run", "ps", "images", "pull", "push", "exec", "logs", "compose", "volume",
-                "network", "stop", "start", "rm", "rmi", "inspect", "login", "logout", "system",
+                "build", "run", "ps", "images", "pull", "push", "exec", "logs", "compose",
+                "volume", "network", "stop", "start", "rm", "rmi", "inspect", "login", "logout",
+                "system",
             ],
             &["completion", "powershell"],
         ),
@@ -85,8 +106,22 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["kubectl"],
             CompletionStrategy::NativeGenerate,
             &[
-                "get", "describe", "apply", "delete", "logs", "exec", "port-forward", "config",
-                "rollout", "scale", "create", "edit", "run", "top", "cordon", "drain",
+                "get",
+                "describe",
+                "apply",
+                "delete",
+                "logs",
+                "exec",
+                "port-forward",
+                "config",
+                "rollout",
+                "scale",
+                "create",
+                "edit",
+                "run",
+                "top",
+                "cordon",
+                "drain",
             ],
             &["completion", "powershell"],
         ),
@@ -118,8 +153,17 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["yarn"],
             CompletionStrategy::Builtin,
             &[
-                "install", "add", "remove", "run", "test", "build", "workspace", "workspaces",
-                "upgrade", "init", "dlx",
+                "install",
+                "add",
+                "remove",
+                "run",
+                "test",
+                "build",
+                "workspace",
+                "workspaces",
+                "upgrade",
+                "init",
+                "dlx",
             ],
             &[],
         ),
@@ -129,8 +173,20 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["terraform"],
             CompletionStrategy::Builtin,
             &[
-                "init", "plan", "apply", "destroy", "validate", "fmt", "state", "output", "workspace",
-                "import", "taint", "untaint", "force-unlock", "providers",
+                "init",
+                "plan",
+                "apply",
+                "destroy",
+                "validate",
+                "fmt",
+                "state",
+                "output",
+                "workspace",
+                "import",
+                "taint",
+                "untaint",
+                "force-unlock",
+                "providers",
             ],
             &[],
         ),
@@ -148,8 +204,18 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["aws"],
             CompletionStrategy::Builtin,
             &[
-                "s3", "ec2", "iam", "lambda", "sts", "cloudformation", "ecs", "eks", "rds", "logs",
-                "configure", "help",
+                "s3",
+                "ec2",
+                "iam",
+                "lambda",
+                "sts",
+                "cloudformation",
+                "ecs",
+                "eks",
+                "rds",
+                "logs",
+                "configure",
+                "help",
             ],
             &[],
         ),
@@ -159,8 +225,18 @@ pub fn builtin_packs() -> Vec<CompletionPack> {
             &["az"],
             CompletionStrategy::NativeGenerate,
             &[
-                "login", "account", "group", "vm", "aks", "acr", "storage", "network", "webapp",
-                "keyvault", "configure", "version",
+                "login",
+                "account",
+                "group",
+                "vm",
+                "aks",
+                "acr",
+                "storage",
+                "network",
+                "webapp",
+                "keyvault",
+                "configure",
+                "version",
             ],
             // `az` ships completer via `az.completion.sh` style; on Windows try:
             &["completion", "-s", "powershell"],
@@ -187,14 +263,20 @@ fn pack(
 }
 
 /// Whether a pack should be active given detection + policy.
-pub fn pack_enabled(pack: &CompletionPack, detected: &DetectionReport, policy: &CompletionPolicy) -> bool {
+pub fn pack_enabled(
+    pack: &CompletionPack,
+    detected: &DetectionReport,
+    policy: &CompletionPolicy,
+) -> bool {
     if !policy.enabled {
         return false;
     }
     if !policy.only.is_empty() && !policy.only.iter().any(|id| id == &pack.id) {
         return false;
     }
-    pack.detect.iter().any(|name| command_present(detected, name))
+    pack.detect
+        .iter()
+        .any(|name| command_present(detected, name))
 }
 
 fn command_present(detected: &DetectionReport, name: &str) -> bool {

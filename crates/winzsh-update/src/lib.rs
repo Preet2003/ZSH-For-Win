@@ -132,7 +132,10 @@ pub fn apply_github(paths: &WinzshPaths, cfg: &UpdateConfig) -> Result<ApplyRepo
     let previous = report.current_version.clone();
     replace_cli_binary(paths, &staged)?;
     steps.push(format!("installed {}", paths.cli_binary().display()));
-    steps.push(format!("previous binary backed up to {}", paths.cli_binary_backup().display()));
+    steps.push(format!(
+        "previous binary backed up to {}",
+        paths.cli_binary_backup().display()
+    ));
 
     info!(from = %previous, to = %latest, "applied GitHub self-update");
     Ok(ApplyReport {
@@ -146,9 +149,10 @@ pub fn apply_github(paths: &WinzshPaths, cfg: &UpdateConfig) -> Result<ApplyRepo
 
 /// Rebuild from a local git/cargo checkout and replace `~/.winzsh/bin/winzsh.exe`.
 pub fn apply_from_source(paths: &WinzshPaths, opts: &FromSourceOptions) -> Result<ApplyReport> {
-    let source = opts.source_dir.canonicalize().map_err(|source| {
-        winzsh_error::io(opts.source_dir.clone(), source)
-    })?;
+    let source = opts
+        .source_dir
+        .canonicalize()
+        .map_err(|source| winzsh_error::io(opts.source_dir.clone(), source))?;
     if !source.join("Cargo.toml").is_file() {
         return Err(message(format!(
             "no Cargo.toml in {} — pass the zsh-for-win workspace root",
@@ -177,15 +181,20 @@ pub fn apply_from_source(paths: &WinzshPaths, opts: &FromSourceOptions) -> Resul
         .status()
         .map_err(|e| message(format!("cargo build failed to start: {e}")))?;
     if !status.success() {
-        return Err(message(format!("cargo build -p winzsh --release failed ({status})")));
+        return Err(message(format!(
+            "cargo build -p winzsh --release failed ({status})"
+        )));
     }
     steps.push("cargo build -p winzsh --release".into());
 
-    let built = source.join("target").join("release").join(if cfg!(windows) {
-        "winzsh.exe"
-    } else {
-        "winzsh"
-    });
+    let built = source
+        .join("target")
+        .join("release")
+        .join(if cfg!(windows) {
+            "winzsh.exe"
+        } else {
+            "winzsh"
+        });
     if !built.is_file() {
         return Err(message(format!(
             "build finished but binary missing at {}",
@@ -236,10 +245,7 @@ pub fn rollback(paths: &WinzshPaths) -> Result<ApplyReport> {
 }
 
 /// Resolve source dir from flag, config, env, or cwd.
-pub fn resolve_source_dir(
-    explicit: Option<PathBuf>,
-    cfg: &UpdateConfig,
-) -> Result<PathBuf> {
+pub fn resolve_source_dir(explicit: Option<PathBuf>, cfg: &UpdateConfig) -> Result<PathBuf> {
     if let Some(p) = explicit {
         return Ok(p);
     }
@@ -281,10 +287,7 @@ fn read_binary_version(paths: &WinzshPaths) -> Option<String> {
     if !bin.is_file() {
         return None;
     }
-    let out = Command::new(&bin)
-        .arg("--version")
-        .output()
-        .ok()?;
+    let out = Command::new(&bin).arg("--version").output().ok()?;
     if !out.status.success() {
         return None;
     }
@@ -326,7 +329,9 @@ fn download_file(url: &str, dest: &Path) -> Result<()> {
     std::io::copy(&mut reader, &mut bytes)
         .map_err(|e| message(format!("download read failed: {e}")))?;
     if bytes.len() < 1024 {
-        return Err(message("downloaded file looks too small to be a CLI binary"));
+        return Err(message(
+            "downloaded file looks too small to be a CLI binary",
+        ));
     }
     atomic_write(dest, &bytes)?;
     Ok(())

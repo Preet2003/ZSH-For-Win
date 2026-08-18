@@ -100,7 +100,16 @@ pub fn detect_environment() -> Result<DetectionReport> {
     }
     // Phase 4 developer CLIs (completion packs)
     for name in [
-        "docker", "kubectl", "npm", "pnpm", "yarn", "terraform", "ssh", "aws", "az", "cargo",
+        "docker",
+        "kubectl",
+        "npm",
+        "pnpm",
+        "yarn",
+        "terraform",
+        "ssh",
+        "aws",
+        "az",
+        "cargo",
     ] {
         if find_on_path(name)
             .or_else(|| find_winget_tool(name))

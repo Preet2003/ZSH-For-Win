@@ -256,7 +256,9 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
 
         let has_github = !cfg.update.github_repo.trim().is_empty();
         let has_source = !cfg.update.source_dir.trim().is_empty()
-            || std::env::var("WINZSH_SOURCE").map(|v| !v.trim().is_empty()).unwrap_or(false);
+            || std::env::var("WINZSH_SOURCE")
+                .map(|v| !v.trim().is_empty())
+                .unwrap_or(false);
         if has_github {
             diagnostics.push(Diagnostic::info(
                 "update.github",
@@ -352,9 +354,7 @@ pub fn run(paths: &WinzshPaths) -> DoctorReport {
                         "autosuggestions disabled in config (AcceptSuggestion omitted)",
                     ));
                 }
-                let want_completions = loaded_cfg
-                    .as_ref()
-                    .is_none_or(|c| c.completions.enabled);
+                let want_completions = loaded_cfg.as_ref().is_none_or(|c| c.completions.enabled);
                 if module.contains("Initialize-WinZshCompletions") {
                     diagnostics.push(Diagnostic::info(
                         "completions.runtime",

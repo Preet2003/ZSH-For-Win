@@ -228,15 +228,14 @@ mod tests {
 
     #[test]
     fn markers_upsert_and_remove() {
-        let block = format!(
-            "{}\nhello\n{}\n",
-            markers::BEGIN,
-            markers::END
-        );
+        let block = format!("{}\nhello\n{}\n", markers::BEGIN, markers::END);
         let merged = markers::upsert("prefix\n", &block);
         assert!(markers::present(&merged));
         assert!(merged.contains("prefix"));
-        let again = markers::upsert(&merged, &format!("{}\nworld\n{}\n", markers::BEGIN, markers::END));
+        let again = markers::upsert(
+            &merged,
+            &format!("{}\nworld\n{}\n", markers::BEGIN, markers::END),
+        );
         assert!(again.contains("world"));
         assert!(!again.contains("hello"));
         let cleaned = markers::remove(&again);

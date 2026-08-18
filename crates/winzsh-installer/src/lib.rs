@@ -195,8 +195,8 @@ pub fn ensure_user_path(dir: &Path) -> Result<bool> {
 
 #[cfg(windows)]
 fn ensure_user_path_windows(dir: &Path) -> Result<bool> {
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
     use winreg::RegKey;
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
 
     let dir_display = dir.display().to_string();
     let dir_canon = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());

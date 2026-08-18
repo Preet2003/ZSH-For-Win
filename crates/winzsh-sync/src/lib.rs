@@ -152,9 +152,7 @@ pub fn build_bundle(paths: &WinzshPaths, opts: &ExportOptions) -> Result<SyncBun
     let config_toml = toml::to_string_pretty(&sanitized)
         .map_err(|e| message(format!("serialize config for sync: {e}")))?;
 
-    let install_id = State::load(paths)
-        .map(|s| s.install_id)
-        .unwrap_or_default();
+    let install_id = State::load(paths).map(|s| s.install_id).unwrap_or_default();
 
     let mut plugins = BTreeMap::new();
     if opts.include_plugins {
@@ -235,8 +233,8 @@ pub fn import_from(
     opts: &ImportOptions,
 ) -> Result<ImportReport> {
     let (label, raw) = read_bundle_bytes(source)?;
-    let bundle: SyncBundle = serde_json::from_slice(&raw)
-        .map_err(|e| message(format!("parse sync bundle: {e}")))?;
+    let bundle: SyncBundle =
+        serde_json::from_slice(&raw).map_err(|e| message(format!("parse sync bundle: {e}")))?;
     if bundle.schema_version != BUNDLE_SCHEMA {
         return Err(message(format!(
             "unsupported sync schema_version {}",
@@ -382,12 +380,9 @@ fn collect_plugin_files(root: &Path) -> Result<BTreeMap<String, String>> {
     Ok(out)
 }
 
-fn collect_files_rec(
-    root: &Path,
-    dir: &Path,
-    out: &mut BTreeMap<String, String>,
-) -> Result<()> {
-    let entries = fs::read_dir(dir).map_err(|source| winzsh_error::io(dir.to_path_buf(), source))?;
+fn collect_files_rec(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) -> Result<()> {
+    let entries =
+        fs::read_dir(dir).map_err(|source| winzsh_error::io(dir.to_path_buf(), source))?;
     for entry in entries {
         let entry = entry.map_err(|source| winzsh_error::io(dir.to_path_buf(), source))?;
         let path = entry.path();
@@ -541,7 +536,10 @@ mod tests {
         assert_eq!(imported.theme, "tokyo-night");
         let loaded = config::load(paths).expect("load");
         assert_eq!(loaded.theme, "tokyo-night");
-        assert_eq!(loaded.aliases.get("ll").map(String::as_str), Some("Get-ChildItem"));
+        assert_eq!(
+            loaded.aliases.get("ll").map(String::as_str),
+            Some("Get-ChildItem")
+        );
         let _ = fs::remove_dir_all(&home.paths.root);
     }
 }

@@ -122,7 +122,8 @@ pub fn check_safety(command: &str) -> SafetyReport {
 
     push_if(
         &mut findings,
-        lower.contains("remove-item") && (lower.contains("-recurse") || lower.contains("-r "))
+        lower.contains("remove-item")
+            && (lower.contains("-recurse") || lower.contains("-r "))
             && (lower.contains("-force") || lower.contains("-f")),
         SafetyLevel::Danger,
         "ps.remove_force_recurse",
@@ -171,7 +172,9 @@ pub fn check_safety(command: &str) -> SafetyReport {
     );
     push_if(
         &mut findings,
-        lower.contains("curl ") && lower.contains("|") && (lower.contains("bash") || lower.contains("iex")),
+        lower.contains("curl ")
+            && lower.contains("|")
+            && (lower.contains("bash") || lower.contains("iex")),
         SafetyLevel::Danger,
         "pipe_to_shell",
         "Downloading and executing remote code",
@@ -265,9 +268,7 @@ fn explain_local(command: &str) -> AiTextResult {
     } else if lower.starts_with("cargo ") {
         parts.push("Rust Cargo toolchain command (build/test/run/…).".into());
     } else {
-        parts.push(
-            "Local explain: no specific heuristic matched for this command.".into(),
-        );
+        parts.push("Local explain: no specific heuristic matched for this command.".into());
         parts.push(format!("Command: {command}"));
     }
 
@@ -289,7 +290,8 @@ fn ask_local(prompt: &str) -> AiTextResult {
     let p = prompt.to_ascii_lowercase();
     let text = if (p.contains("delete") || p.contains("remove")) && p.contains("node_modules") {
         "Remove-Item -LiteralPath .\\node_modules -Recurse -Force".into()
-    } else if p.contains("list") && (p.contains("file") || p.contains("dir") || p.contains("folder"))
+    } else if p.contains("list")
+        && (p.contains("file") || p.contains("dir") || p.contains("folder"))
     {
         "Get-ChildItem -Force".into()
     } else if p.contains("git status") || (p.contains("git") && p.contains("status")) {
@@ -307,9 +309,7 @@ fn ask_local(prompt: &str) -> AiTextResult {
     } else if p.contains("clear") && p.contains("screen") {
         "Clear-Host".into()
     } else {
-        format!(
-            "# No local mapping for: {prompt}\n# WinZSH AI is local-only (offline heuristics)."
-        )
+        format!("# No local mapping for: {prompt}\n# WinZSH AI is local-only (offline heuristics).")
     };
 
     let mut notes = vec!["provider=local (offline heuristics)".into()];
@@ -337,7 +337,8 @@ fn alias_local(description: &str) -> AiTextResult {
         ("gst", "git status -sb")
     } else if lower.contains("git push") {
         ("gpush", "git push")
-    } else if lower.contains("docker ps") || (lower.contains("docker") && lower.contains("container"))
+    } else if lower.contains("docker ps")
+        || (lower.contains("docker") && lower.contains("container"))
     {
         ("dps", "docker ps")
     } else if lower.contains("cargo build") {

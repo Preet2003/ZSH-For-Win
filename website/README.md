@@ -4,27 +4,21 @@ Static marketing page for SEO and downloads.
 
 ## Live URL
 
-After Pages is enabled and this workflow runs:
-
 **https://preet2003.github.io/ZSH-For-Win/**
 
-Download button:
+## Enable Pages (fixes deploy 404)
+
+The workflow fails with `Failed to create deployment (status: 404)` until you do this once:
+
+1. Open https://github.com/Preet2003/ZSH-For-Win/settings/pages
+2. Under **Build and deployment → Source**, choose **GitHub Actions**
+3. Save
+4. Actions → **Pages** → **Run workflow**
+
+Node 20 deprecation messages from `deploy-pages` are warnings only; ignore them.
+
+## Download button
 
 `https://github.com/Preet2003/ZSH-For-Win/releases/latest/download/WinZSH-Setup-x86_64.exe`
 
-## Deploy
-
-Workflow: `.github/workflows/pages.yml`
-
-1. Push `website/` + the workflow to `main`.
-2. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Run **Actions → Pages → Run workflow** (or push a change under `website/`).
-4. Open the Pages URL and test Download.
-
-## Local preview
-
-```powershell
-cd website
-# open index.html in a browser, or:
-npx --yes serve .
-```
+Requires a published Release that attaches `WinZSH-Setup-x86_64.exe`.

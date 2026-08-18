@@ -1,5 +1,8 @@
 # Deploy the static marketing site in website/ to GitHub Pages.
-# Live URL (after first successful run): https://preet2003.github.io/ZSH-For-Win/
+# Live URL: https://preet2003.github.io/ZSH-For-Win/
+#
+# REQUIRED (one-time): Repo Settings → Pages → Source = "GitHub Actions"
+# Without that, deploy-pages fails with HTTP 404.
 
 name: Pages
 
