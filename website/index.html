@@ -188,8 +188,10 @@
           </article>
           <article>
             <h3>2. Run Setup</h3>
-            <p>Double-click, or silent install:</p>
-            <pre><code>.\WinZSH-Setup-x86_64.exe setup -y</code></pre>
+            <p>Double-click the downloaded file. A <strong>black console window</strong> opens — wait until it says <code>Press Enter</code>, then close it.</p>
+            <p>Or from PowerShell:</p>
+            <pre><code>.\WinZSH-Setup-x86_64.exe</code></pre>
+            <p class="fine">Already installed? Setup repairs/updates safely and keeps your config.</p>
           </article>
           <article>
             <h3>3. Open a new tab</h3>
@@ -264,6 +266,15 @@ exit                     # back to stock PowerShell</code></pre>
         <details>
           <summary>Is AI free / private?</summary>
           <p>Yes. Local offline heuristics only - no cloud provider, no API key requirement.</p>
+        </details>
+        <details>
+          <summary>I double-clicked Setup and nothing seemed to happen</summary>
+          <p>
+            A console window should open and pause on <code>Press Enter to close</code>.
+            If it only flashes, run from PowerShell in your Downloads folder:
+            <code>.\WinZSH-Setup-x86_64.exe</code>.
+            Already having WinZSH installed is fine — Setup repairs/updates it.
+          </p>
         </details>
         <details>
           <summary>Why did Download show 404?</summary>

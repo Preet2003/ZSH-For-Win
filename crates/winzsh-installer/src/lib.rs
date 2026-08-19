@@ -110,7 +110,7 @@ pub fn self_install_with_detection(
     if same_file(&src, &dest) {
         report.step(format!("CLI already at {}", dest.display()));
     } else {
-        fs::copy(&src, &dest).map_err(|source| winzsh_error::io(dest.clone(), source))?;
+        install_cli_binary(&src, &dest, paths)?;
         report.step(format!("installed CLI to {}", dest.display()));
     }
 
@@ -161,6 +161,56 @@ fn same_file(a: &Path, b: &Path) -> bool {
         (Ok(a), Ok(b)) => a == b,
         _ => false,
     }
+}
+
+/// Copy/replace `~/.winzsh/bin/winzsh.exe` using a Windows-friendly rename dance
+/// when the destination is locked (running agent / open handle).
+fn install_cli_binary(src: &Path, dest: &Path, paths: &WinzshPaths) -> Result<()> {
+    // Stage next to dest so rename stays on the same volume.
+    let staged = paths
+        .bin_dir()
+        .join(format!("winzsh.setup-{}.tmp", std::process::id()));
+    let _ = fs::remove_file(&staged);
+    fs::copy(src, &staged).map_err(|source| {
+        message(format!(
+            "could not stage installer binary to {}: {source}\n\
+             Tip: free disk space, then re-run Setup.",
+            staged.display()
+        ))
+    })?;
+
+    let bak = paths.cli_binary_backup();
+    if dest.is_file() {
+        let _ = fs::remove_file(&bak);
+        if let Err(source) = fs::rename(dest, &bak) {
+            let _ = fs::remove_file(&staged);
+            return Err(message(format!(
+                "could not replace {}: {source}\n\
+                 The existing winzsh.exe is probably in use.\n\
+                 Close other terminals, run `winzsh agent stop`, then re-run Setup.",
+                dest.display()
+            )));
+        }
+    }
+
+    if let Err(source) = fs::rename(&staged, dest) {
+        // Fall back to copy; restore backup if we moved one aside.
+        let copy_err = fs::copy(&staged, dest);
+        let _ = fs::remove_file(&staged);
+        if copy_err.is_err() {
+            if bak.is_file() {
+                let _ = fs::rename(&bak, dest);
+            }
+            return Err(message(format!(
+                "could not install CLI to {}: {source}\n\
+                 Close other WinZSH processes (`winzsh agent stop`) and try again.\n\
+                 Or from PowerShell:  Copy-Item .\\WinZSH-Setup-x86_64.exe $env:USERPROFILE\\.winzsh\\bin\\winzsh.exe -Force",
+                dest.display()
+            )));
+        }
+    }
+    let _ = fs::remove_file(&staged);
+    Ok(())
 }
 
 fn write_launcher(paths: &WinzshPaths) -> Result<()> {

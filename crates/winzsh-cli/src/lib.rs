@@ -344,12 +344,42 @@ enum PluginCommands {
 
 /// Parse CLI args and dispatch. Returns a process exit code.
 pub fn run() -> ExitCode {
+    // Double-clicked Setup.exe: keep the console open on panics so users can read errors.
+    if launched_as_setup_window() {
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            prev(info);
+            eprintln!();
+            eprintln!("WinZSH Setup crashed unexpectedly.");
+            eprintln!(
+                "If this keeps happening, open PowerShell and run the downloaded file from there:"
+            );
+            eprintln!("  .\\WinZSH-Setup-x86_64.exe");
+            pause_setup_window();
+        }));
+    }
+
     match run_inner() {
         Ok(code) => code,
         Err(err) => {
             let code = err.exit_code();
             error!("{err}");
-            eprintln!("{:?}", miette::Report::new(err));
+            if launched_as_setup_window() {
+                eprintln!();
+                eprintln!("========== WinZSH Setup failed ==========");
+                eprintln!("{:?}", miette::Report::new(err));
+                eprintln!();
+                eprintln!("Common fixes:");
+                eprintln!("  - Close other WinZSH / PowerShell windows using the old install");
+                eprintln!("  - Run:  winzsh agent stop   (if a background agent is running)");
+                eprintln!("  - Right-click the downloaded file → Properties → Unblock → Apply");
+                eprintln!("  - Or open PowerShell in your Downloads folder and run:");
+                eprintln!("      .\\WinZSH-Setup-x86_64.exe");
+                eprintln!();
+                pause_setup_window();
+            } else {
+                eprintln!("{:?}", miette::Report::new(err));
+            }
             ExitCode::from(code)
         }
     }
@@ -410,10 +440,47 @@ fn exe_looks_like_setup() -> bool {
         .unwrap_or(false)
 }
 
+/// True when the user likely double-clicked `WinZSH-Setup*.exe` (no CLI args).
+///
+/// Do **not** gate the end-of-setup pause on `stdin().is_terminal()` — Explorer
+/// launches often flash a console and exit before the user can read anything.
+fn launched_as_setup_window() -> bool {
+    exe_looks_like_setup() && std::env::args_os().len() <= 1
+}
+
+fn pause_setup_window() {
+    if !launched_as_setup_window() {
+        return;
+    }
+    println!();
+    print!("Press Enter to close this window... ");
+    let _ = io::stdout().flush();
+    let _ = io::stderr().flush();
+    let mut line = String::new();
+    let _ = io::stdin().read_line(&mut line);
+}
+
 fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Result<ExitCode, Error> {
+    let already = paths.is_installed();
+    let setup_window = launched_as_setup_window();
+
+    if !json {
+        println!("WinZSH Setup {VERSION}");
+        println!("Install location: {}", paths.root.display());
+        if already {
+            println!();
+            println!("An existing WinZSH install was found.");
+            println!(
+                "Setup will repair/update the CLI, profile hook, and runtime (your config is kept)."
+            );
+        }
+        println!();
+        let _ = io::stdout().flush();
+    }
+
     if !yes && !json && io::stdin().is_terminal() {
         eprint!(
-            "Install WinZSH {VERSION} to {} ? [Y/n] ",
+            "Install / repair WinZSH {VERSION} to {} ? [Y/n] ",
             paths.root.display()
         );
         let _ = io::stderr().flush();
@@ -423,7 +490,8 @@ fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Resul
             .map_err(|source| winzsh_error::io("<stdin>", source))?;
         let t = line.trim();
         if !(t.is_empty() || t.eq_ignore_ascii_case("y") || t.eq_ignore_ascii_case("yes")) {
-            println!("Cancelled.");
+            println!("Cancelled — nothing was changed.");
+            pause_setup_window();
             return Ok(ExitCode::from(1));
         }
     }
@@ -442,26 +510,31 @@ fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Resul
             serde_json::to_string_pretty(&report).map_err(|e| Error::Message(e.to_string()))?
         );
     } else {
-        println!("WinZSH installed.");
+        println!();
+        if already {
+            println!("WinZSH repaired / updated successfully.");
+        } else {
+            println!("WinZSH installed successfully.");
+        }
         for step in &report.steps {
             println!("  - {step}");
         }
         println!();
         println!("Next steps:");
-        println!("  1. Open a NEW PowerShell tab (so PATH + profile load).");
-        println!("  2. Run:  zsh-for-win");
-        println!("  3. Try:  Get-WinZshInfo");
-        println!("  4. exit   (back to stock PowerShell)");
-    }
-
-    if exe_looks_like_setup() && !json && io::stdin().is_terminal() {
+        println!("  1. Close this window.");
+        println!("  2. Open a NEW PowerShell or Windows Terminal tab");
+        println!("     (so PATH and profile refresh).");
+        println!("  3. Run:  zsh-for-win");
+        println!("  4. Try:  Get-WinZshInfo");
+        println!("  5. Type: exit    (returns to stock PowerShell)");
         println!();
-        print!("Press Enter to close... ");
-        let _ = io::stderr().flush();
-        let mut line = String::new();
-        let _ = io::stdin().read_line(&mut line);
+        println!("Already using WinZSH? You can keep your config; just open a new tab.");
+        if !setup_window {
+            println!("Tip: double-clicking Setup.exe shows this window until you press Enter.");
+        }
     }
 
+    pause_setup_window();
     Ok(ExitCode::SUCCESS)
 }
 

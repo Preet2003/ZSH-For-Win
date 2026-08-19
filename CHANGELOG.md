@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Background agent: `agent status|start|stop|run-once|run` (same `winzsh` binary)
 - Config `[shells]` and `[agent]`
 - AI is **local-only** (OpenAI/cloud path removed; offline heuristics)
+- Setup.exe keeps the console open until Enter (clear repair messages when already installed)
 - Settings sync: `sync status|export|import|push|pull` (OneDrive/USB/JSON bundle; optional plugins/history)
 - Plugin registry: `plugin search|info|update`; `plugin add` resolves community index (SHA-256 zips)
 - Sample community plugin `demo-aliases` (embedded package + `registry/`)
