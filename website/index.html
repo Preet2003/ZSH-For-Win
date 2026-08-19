@@ -188,11 +188,10 @@
           </article>
           <article>
             <h3>2. Run Setup</h3>
-            <p>Double-click the downloaded file. A <strong>black console window</strong> opens — wait until it says <code>Press Enter</code>, then close it.</p>
+            <p>Double-click the downloaded file. A console may flash, then a <strong>WinZSH Setup</strong> confirmation dialog appears — click OK when finished.</p>
             <p>Or from PowerShell:</p>
             <pre><code>.\WinZSH-Setup-x86_64.exe</code></pre>
             <p class="fine">Already installed? Setup repairs/updates safely and keeps your config.</p>
-            <p class="fine"><strong>Important:</strong> the Download button serves the GitHub <em>Release</em> file. After Setup fixes, rebuild and re-upload <code>WinZSH-Setup-x86_64.exe</code> to the release — pushing code alone does not update that download.</p>
           </article>
           <article>
             <h3>3. Open a new tab</h3>
@@ -271,7 +270,7 @@ exit                     # back to stock PowerShell</code></pre>
         <details>
           <summary>I double-clicked Setup and nothing seemed to happen</summary>
           <p>
-            A console window should open and pause on <code>Press Enter to close</code>.
+            You should see a <strong>WinZSH Setup</strong> dialog (and a console that waits for a key).
             If it only flashes, run from PowerShell in your Downloads folder:
             <code>.\WinZSH-Setup-x86_64.exe</code>.
             Already having WinZSH installed is fine — Setup repairs/updates it.

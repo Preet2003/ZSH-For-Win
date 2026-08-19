@@ -42,12 +42,31 @@ $setupName = "WinZSH-Setup-x86_64.exe"
 $exeAssetName = "winzsh-$triple.exe"
 $zipName = "winzsh-v$Version-$triple.zip"
 
+# Cursor/agent sandboxes may inject CARGO_TARGET_DIR pointing at a stale cache.
+# Always build into this repo's target/ so dist/ matches the sources you just edited.
+$env:CARGO_TARGET_DIR = Join-Path $RepoRoot "target"
+
 Write-Host "==> Building winzsh $Version ($triple)" -ForegroundColor Cyan
+Write-Host "    CARGO_TARGET_DIR=$($env:CARGO_TARGET_DIR)"
 cargo build -p winzsh --release
+if ($LASTEXITCODE -ne 0) {
+    throw "cargo build failed with exit $LASTEXITCODE"
+}
 $built = Join-Path $RepoRoot "target\release\winzsh.exe"
 if (-not (Test-Path -LiteralPath $built)) {
     throw "Missing build output: $built"
 }
+
+# Guard against shipping an old binary that only runs `status` (no Setup UX).
+$probe = [System.IO.File]::ReadAllBytes($built)
+$ascii = [System.Text.Encoding]::ASCII.GetString($probe)
+if ($ascii -notlike "*WinZSH Setup*") {
+    throw @"
+Built $built does not contain Setup strings — refusing to package a stale binary.
+Delete target\ and rebuild, or unset any sandbox CARGO_TARGET_DIR override.
+"@
+}
+Write-Host ("    Built {0:N0} bytes (expects Setup auto-run + pause/dialog)" -f (Get-Item -LiteralPath $built).Length)
 
 if (Test-Path -LiteralPath $OutDir) {
     Remove-Item -LiteralPath $OutDir -Recurse -Force
