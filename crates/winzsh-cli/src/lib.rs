@@ -376,6 +376,16 @@ pub fn run() -> ExitCode {
                 eprintln!("  - Or open PowerShell in your Downloads folder and run:");
                 eprintln!("      .\\WinZSH-Setup-x86_64.exe");
                 eprintln!();
+                setup_message_box(
+                    "WinZSH Setup failed",
+                    "Setup could not finish.\n\n\
+                     Try:\n\
+                     - Close other WinZSH windows\n\
+                     - Run: winzsh agent stop\n\
+                     - Right-click the .exe → Properties → Unblock\n\
+                     - Or run from PowerShell: .\\WinZSH-Setup-x86_64.exe\n\n\
+                     Details are in the console window.",
+                );
                 pause_setup_window();
             } else {
                 eprintln!("{:?}", miette::Report::new(err));
@@ -453,11 +463,51 @@ fn pause_setup_window() {
         return;
     }
     println!();
-    print!("Press Enter to close this window... ");
+    println!("Press any key in this window to close...");
     let _ = io::stdout().flush();
     let _ = io::stderr().flush();
-    let mut line = String::new();
-    let _ = io::stdin().read_line(&mut line);
+    // Explorer double-click often makes stdin EOF immediately — `read_line` is unreliable.
+    // `cmd /c pause` waits on the attached console; MessageBox is visible even if the console flashes.
+    #[cfg(windows)]
+    {
+        let _ = Command::new("cmd.exe").args(["/C", "pause"]).status();
+    }
+    #[cfg(not(windows))]
+    {
+        let mut line = String::new();
+        let _ = io::stdin().read_line(&mut line);
+    }
+}
+
+/// Windows MessageBox for Setup double-click UX (no unsafe / no extra crates).
+fn setup_message_box(title: &str, body: &str) {
+    if !launched_as_setup_window() {
+        return;
+    }
+    #[cfg(windows)]
+    {
+        let title_ps = title.replace('\'', "''");
+        let body_ps = body.replace('\'', "''");
+        let script = format!(
+            "Add-Type -AssemblyName System.Windows.Forms; \
+             [void][System.Windows.Forms.MessageBox]::Show('{body_ps}','{title_ps}',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)"
+        );
+        let _ = Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                &script,
+            ])
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (title, body);
+    }
 }
 
 fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Result<ExitCode, Error> {
@@ -491,6 +541,7 @@ fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Resul
         let t = line.trim();
         if !(t.is_empty() || t.eq_ignore_ascii_case("y") || t.eq_ignore_ascii_case("yes")) {
             println!("Cancelled — nothing was changed.");
+            setup_message_box("WinZSH Setup", "Setup cancelled. Nothing was changed.");
             pause_setup_window();
             return Ok(ExitCode::from(1));
         }
@@ -530,8 +581,28 @@ fn cmd_setup(paths: &WinzshPaths, yes: bool, theme: String, json: bool) -> Resul
         println!();
         println!("Already using WinZSH? You can keep your config; just open a new tab.");
         if !setup_window {
-            println!("Tip: double-clicking Setup.exe shows this window until you press Enter.");
+            println!("Tip: double-clicking Setup.exe shows a confirmation dialog when finished.");
         }
+
+        let dialog = if already {
+            format!(
+                "WinZSH {VERSION} repaired/updated successfully.\n\n\
+                 Next steps:\n\
+                 1. Open a NEW PowerShell / Windows Terminal tab\n\
+                 2. Run: zsh-for-win\n\
+                 3. Try: Get-WinZshInfo\n\n\
+                 Your existing config was kept."
+            )
+        } else {
+            format!(
+                "WinZSH {VERSION} installed successfully.\n\n\
+                 Next steps:\n\
+                 1. Open a NEW PowerShell / Windows Terminal tab\n\
+                 2. Run: zsh-for-win\n\
+                 3. Try: Get-WinZshInfo"
+            )
+        };
+        setup_message_box("WinZSH Setup", &dialog);
     }
 
     pause_setup_window();
